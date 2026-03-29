@@ -18,75 +18,80 @@ export default function HomePage() {
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
 
-  // Auto-redirect if already logged in
+  // Already logged in? Redirect immediately
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const { data: p } = await supabase.from('profiles').select('role').eq('id', session.user.id).single()
-        if (p && ['admin','staff','superadmin'].includes(p.role)) router.replace('/admin')
-        else router.replace('/customer')
-      } else {
-        setChecking(false)
-      }
+      if (!session?.user) { setChecking(false); return }
+      // Read role from profile, fallback to user_metadata
+      const { data: p } = await supabase
+        .from('profiles').select('role').eq('id', session.user.id).single()
+      const r = p?.role || (session.user.user_metadata?.role as string) || 'customer'
+      if (['admin', 'staff', 'superadmin'].includes(r)) router.replace('/admin')
+      else router.replace('/customer')
     })
   }, [router])
+
+  async function redirectAfterAuth(userId: string) {
+    const { data: p } = await supabase
+      .from('profiles').select('role').eq('id', userId).single()
+    const r = p?.role || 'customer'
+    if (['admin', 'staff', 'superadmin'].includes(r)) router.replace('/admin')
+    else router.replace('/customer')
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true); setErr('')
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setErr('Hibás email vagy jelszó.'); setLoading(false); return }
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
-    if (profile && ['admin','staff','superadmin'].includes(profile.role)) {
-      router.replace('/admin')
-    } else {
-      router.replace('/customer')
-    }
-    // Don't setLoading(false) — let the redirect happen
+    await redirectAfterAuth(data.user.id)
+    // Keep loading=true — page will redirect
   }
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true); setErr('')
-    const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name } } })
+    const { data, error } = await supabase.auth.signUp({
+      email, password,
+      options: { data: { full_name: name, role } },
+    })
     if (error) { setErr(error.message); setLoading(false); return }
     if (data.user) {
-      await supabase.from('profiles').upsert({ id: data.user.id, email, full_name: name, role })
+      // Explicitly upsert profile — trigger will also do it, belt-and-suspenders
+      await supabase.from('profiles').upsert({
+        id: data.user.id, email, full_name: name, role,
+      })
     }
     if (role === 'admin') router.replace('/admin/setup')
     else router.replace('/customer')
+    // Keep loading=true
   }
 
   async function handleForgot(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true); setErr('')
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/reset-password` : '',
+      redirectTo: typeof window !== 'undefined'
+        ? `${window.location.origin}/reset-password`
+        : '',
     })
     if (error) setErr(error.message)
-    else setMsg('Jelszó visszaállítási link elküldve!')
+    else setMsg('Jelszó visszaállítási link elküldve az email-edre!')
     setLoading(false)
   }
 
-  if (checking) return (
-    <div className="min-h-screen dark-bg flex items-center justify-center">
-      <div className="text-amber-400 text-4xl animate-pulse">🍺</div>
-    </div>
-  )
-
-  if (loading) return (
+  if (checking || loading) return (
     <div className="min-h-screen dark-bg flex flex-col items-center justify-center gap-4">
-      <div className="text-amber-400 text-4xl animate-pulse">🍺</div>
-      <p className="text-white/60 text-sm">Átirányítás...</p>
+      <div className="text-amber-400 text-5xl animate-pulse">🍺</div>
+      {loading && <p className="text-white/40 text-sm">Átirányítás...</p>}
     </div>
   )
 
   // ── LANDING ──
   if (mode === 'landing') return (
     <div className="min-h-screen dark-bg flex flex-col">
-      {/* Desktop: two-column layout */}
       <div className="flex-1 flex flex-col lg:flex-row">
-        {/* Left brand panel (desktop only) */}
+        {/* Desktop left brand panel */}
         <div className="hidden lg:flex lg:w-1/2 xl:w-2/5 flex-col items-center justify-center px-16 border-r border-white/10">
           <div className="w-32 h-32 rounded-full border-4 border-white flex flex-col items-center justify-center mb-8">
             <svg viewBox="0 0 60 60" width="70" height="70" fill="none">
@@ -97,8 +102,10 @@ export default function HomePage() {
             </svg>
             <span className="text-white font-bold text-sm tracking-widest mt-1">KAPAKKA</span>
           </div>
-          <h1 className="text-5xl font-black text-white text-center leading-tight mb-4" style={{fontFamily:'Bebas Neue, sans-serif', letterSpacing:'0.04em'}}>
-            RENDELJ OKOSAN,<br/><span style={{color:'#F5A623'}}>VÁRJ KEVESEBBET.</span>
+          <h1 className="text-5xl font-black text-white text-center leading-tight mb-4"
+            style={{ fontFamily: 'Bebas Neue, sans-serif', letterSpacing: '0.04em' }}>
+            RENDELJ OKOSAN,<br />
+            <span style={{ color: '#F5A623' }}>VÁRJ KEVESEBBET.</span>
           </h1>
           <p className="text-white/50 text-lg text-center">Kocsmakvíz · Rendelés · Hűségpontok</p>
           <div className="mt-10 text-white/20 text-sm">WWW.KAPAKKA.COM</div>
@@ -117,8 +124,10 @@ export default function HomePage() {
               </svg>
               <span className="text-white font-bold text-xs tracking-widest mt-1">KAPAKKA</span>
             </div>
-            <h1 className="text-3xl font-black text-white" style={{fontFamily:'Bebas Neue, sans-serif', letterSpacing:'0.04em'}}>
-              RENDELJ OKOSAN,<br/><span style={{color:'#F5A623'}}>VÁRJ KEVESEBBET.</span>
+            <h1 className="text-3xl font-black text-white"
+              style={{ fontFamily: 'Bebas Neue, sans-serif', letterSpacing: '0.04em' }}>
+              RENDELJ OKOSAN,<br />
+              <span style={{ color: '#F5A623' }}>VÁRJ KEVESEBBET.</span>
             </h1>
             <p className="text-white/50 text-sm mt-2">Kocsmakvíz · Rendelés · Hűségpontok</p>
           </div>
@@ -126,11 +135,11 @@ export default function HomePage() {
           {/* Menu strips */}
           <div className="w-full max-w-sm lg:max-w-md space-y-3 mb-8">
             {[
-              {icon:'🍺', label:'LIST OF PUBS'},
-              {icon:'🎁', label:'SPECIAL OFFER'},
-              {icon:'📱', label:'ORDER'},
-              {icon:'📲', label:'QR CODE'},
-              {icon:'🎮', label:'GAMES'},
+              { icon: '🍺', label: 'LIST OF PUBS' },
+              { icon: '🎁', label: 'SPECIAL OFFER' },
+              { icon: '📱', label: 'ORDER' },
+              { icon: '📲', label: 'QR CODE' },
+              { icon: '🎮', label: 'GAMES' },
             ].map(i => (
               <div key={i.label} className="menu-strip">
                 <span className="text-2xl">{i.icon}</span>
@@ -143,7 +152,6 @@ export default function HomePage() {
             <button className="btn-kapakka text-lg" onClick={() => setMode('register')}>Kezdjük el →</button>
             <button className="btn-outline" onClick={() => setMode('login')}>Már van fiókom</button>
           </div>
-
           <div className="lg:hidden mt-8 text-white/20 text-xs">WWW.KAPAKKA.COM</div>
         </div>
       </div>
@@ -173,10 +181,9 @@ export default function HomePage() {
   // ── LOGIN ──
   if (mode === 'login') return (
     <div className="min-h-screen dark-bg flex flex-col lg:flex-row">
-      {/* Desktop brand side */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-2/5 flex-col items-center justify-center px-16 border-r border-white/10">
         <div className="text-8xl mb-6">🍺</div>
-        <h2 className="text-4xl font-black text-white" style={{fontFamily:'Bebas Neue, sans-serif'}}>KAPAKKA</h2>
+        <h2 className="text-4xl font-black text-white" style={{ fontFamily: 'Bebas Neue, sans-serif' }}>KAPAKKA</h2>
         <p className="text-white/40 mt-3">A legjobb vendéglátóhelyeken</p>
       </div>
       <div className="flex-1 flex flex-col items-center justify-center px-6 lg:px-16">
@@ -213,7 +220,7 @@ export default function HomePage() {
     <div className="min-h-screen dark-bg flex flex-col lg:flex-row">
       <div className="hidden lg:flex lg:w-1/2 xl:w-2/5 flex-col items-center justify-center px-16 border-r border-white/10">
         <div className="text-8xl mb-6">🍺</div>
-        <h2 className="text-4xl font-black text-white" style={{fontFamily:'Bebas Neue, sans-serif'}}>KAPAKKA</h2>
+        <h2 className="text-4xl font-black text-white" style={{ fontFamily: 'Bebas Neue, sans-serif' }}>KAPAKKA</h2>
         <p className="text-white/40 mt-3">Csatlakozz a közösséghez</p>
       </div>
       <div className="flex-1 flex flex-col items-center justify-center px-6 lg:px-16 py-12">
@@ -221,7 +228,7 @@ export default function HomePage() {
           <button onClick={() => setMode('landing')} className="text-white/50 text-sm mb-6 flex items-center gap-2 hover:text-white/80">← Vissza</button>
           <h2 className="text-2xl font-bold text-white mb-6">Regisztráció</h2>
           <div className="flex gap-2 p-1 bg-white/10 rounded-xl mb-6">
-            {(['customer','admin'] as const).map(r => (
+            {(['customer', 'admin'] as const).map(r => (
               <button key={r} onClick={() => setRole(r)}
                 className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors ${role === r ? 'bg-amber-500 text-black' : 'text-white/60 hover:text-white/80'}`}>
                 {r === 'customer' ? '🙋 Vendég vagyok' : '🏪 Vendéglős vagyok'}
