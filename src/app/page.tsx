@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -17,8 +17,10 @@ export default function HomePage() {
   const [checking, setChecking] = useState(true)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
+  
+  // Prevent double redirects
+  const redirectingRef = useRef(false)
 
-  // ✅ FIXED: Single unified auth check on mount only
   useEffect(() => {
     let mounted = true
 
@@ -26,46 +28,29 @@ export default function HomePage() {
       try {
         const { data: { session } } = await supabase.auth.getSession()
         
-        if (!mounted) return
+        if (!mounted || redirectingRef.current) return
 
         if (session?.user) {
-          // Get profile to determine role
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single()
-
-          if (error) {
-            console.error('Profile fetch error:', error)
-            setChecking(false)
-            return
-          }
-
-          const userRole = profile?.role || session.user.user_metadata?.role || 'customer'
-          
-          if (['admin', 'staff', 'superadmin'].includes(userRole)) {
-            router.replace('/admin')
-          } else {
-            router.replace('/customer')
-          }
+          redirectingRef.current = true
+          await redirectByRole(session.user.id, session.user.user_metadata)
         } else {
           setChecking(false)
         }
       } catch (error) {
         console.error('Auth check error:', error)
-        setChecking(false)
+        if (mounted) setChecking(false)
       }
     }
 
     checkAuth()
 
-    // ✅ Subscribe to auth changes but only after initial check
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!mounted) return
+        if (!mounted || redirectingRef.current) return
 
         if (event === 'SIGNED_IN' && session?.user) {
+          redirectingRef.current = true
+          
           // Ensure profile exists
           await supabase.from('profiles').upsert({
             id: session.user.id,
@@ -74,18 +59,7 @@ export default function HomePage() {
             role: session.user.user_metadata?.role || 'customer',
           }, { onConflict: 'id' })
 
-          const { data: p } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single()
-
-          const r = p?.role || session.user.user_metadata?.role || 'customer'
-          if (['admin', 'staff', 'superadmin'].includes(r)) {
-            router.replace('/admin')
-          } else {
-            router.replace('/customer')
-          }
+          await redirectByRole(session.user.id, session.user.user_metadata)
         }
       }
     )
@@ -94,18 +68,30 @@ export default function HomePage() {
       mounted = false
       subscription?.unsubscribe()
     }
-  }, [router]) // ✅ Keep router dependency
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function redirectAfterAuth(userId: string) {
-    const { data: p } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single()
-    const r = p?.role || 'customer'
-    if (['admin', 'staff', 'superadmin'].includes(r)) {
-      router.replace('/admin')
-    } else {
+  async function redirectByRole(userId: string, metadata?: Record<string, unknown>) {
+    try {
+      const { data: p } = await supabase
+        .from('profiles')
+        .select('role, venue_id')
+        .eq('id', userId)
+        .single()
+
+      const userRole = p?.role || (metadata?.role as string) || 'customer'
+      
+      if (['admin', 'staff', 'superadmin'].includes(userRole)) {
+        // If admin has no venue yet, go to setup
+        if (!p?.venue_id && userRole === 'admin') {
+          router.replace('/admin/setup')
+        } else {
+          router.replace('/admin')
+        }
+      } else {
+        router.replace('/customer')
+      }
+    } catch {
+      // If profile lookup fails, default to customer
       router.replace('/customer')
     }
   }
@@ -127,7 +113,8 @@ export default function HomePage() {
     }
     
     if (data.user) {
-      await redirectAfterAuth(data.user.id)
+      redirectingRef.current = true
+      await redirectByRole(data.user.id, data.user.user_metadata)
     }
   }
 
@@ -149,24 +136,24 @@ export default function HomePage() {
     }
     
     if (data.user) {
-      // Create profile
-      await supabase.from('profiles').insert({
+      // Profile is auto-created by DB trigger, but upsert just in case
+      await supabase.from('profiles').upsert({
         id: data.user.id,
         email,
         full_name: name,
         role,
-      }).single()
+      }, { onConflict: 'id' })
 
       setMsg('Regisztráció sikeres! Átirányítás...')
       
-      // Small delay to show message
+      redirectingRef.current = true
       setTimeout(() => {
         if (role === 'admin') {
           router.replace('/admin/setup')
         } else {
           router.replace('/customer')
         }
-      }, 1000)
+      }, 800)
     }
   }
 
@@ -177,7 +164,7 @@ export default function HomePage() {
     
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: typeof window !== 'undefined'
-        ? `${window.location.origin}/reset-password`
+        ? `${window.location.origin}/`
         : '',
     })
     
@@ -232,6 +219,7 @@ export default function HomePage() {
     </div>
   )
 
+  // ─── LOADING STATE ───
   if (checking) {
     return (
       <div className="min-h-screen dark-bg flex flex-col items-center justify-center gap-4">
@@ -421,8 +409,6 @@ export default function HomePage() {
         ) : (
           <form onSubmit={handleForgot} className="space-y-4">
             {err && <p className="text-red-400 text-sm bg-red-900/20 p-3 rounded-lg">{err}</p>}
-            <GoogleButton label="Visszaállítás Google-lel" />
-            <Divider />
             <input
               className="kap-input"
               type="email"
