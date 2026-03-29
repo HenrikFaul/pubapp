@@ -3,121 +3,72 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Order } from '@/types'
-import { formatPrice, ORDER_STATUS_LABELS, timeAgo } from '@/lib/utils'
-import { ArrowLeft, Clock, CheckCircle, Package, ChefHat, Bell } from 'lucide-react'
+import { formatPrice, STATUS_LABELS, timeAgo } from '@/lib/utils'
 
-const STATUS_STEPS = ['pending', 'accepted', 'preparing', 'ready', 'delivered', 'completed']
+const STEPS = [
+  { key: 'pending', label: 'Beérkezett', icon: '📥' },
+  { key: 'accepted', label: 'Elfogadva', icon: '✅' },
+  { key: 'preparing', label: 'Készítés', icon: '👨‍🍳' },
+  { key: 'ready', label: 'Kész!', icon: '🔔' },
+  { key: 'delivered', label: 'Átadva', icon: '🎉' },
+]
 
 export default function OrderTrackingPage() {
   const router = useRouter()
-  const params = useParams()
-  const orderId = params.id as string
-  const [order, setOrder] = useState<Order | null>(null)
+  const { id } = useParams() as { id: string }
+  const [order, setOrder] = useState<any>(null)
   const [items, setItems] = useState<any[]>([])
 
-  const fetchOrder = useCallback(async () => {
-    const { data } = await supabase
-      .from('orders')
-      .select('*, venue:venues(name, address), table:tables(number, name)')
-      .eq('id', orderId)
-      .single()
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('orders').select('*, venue:venues(name,address), table:tables(number)').eq('id', id).single()
     setOrder(data)
-
-    const { data: orderItems } = await supabase
-      .from('order_items')
-      .select('*, menu_item:menu_items(name, price)')
-      .eq('order_id', orderId)
-    setItems(orderItems || [])
-  }, [orderId])
+    const { data: oi } = await supabase.from('order_items').select('*, menu_item:menu_items(name)').eq('order_id', id)
+    setItems(oi || [])
+  }, [id])
 
   useEffect(() => {
-    fetchOrder()
-
-    // Realtime subscription
-    const channel = supabase
-      .channel(`order-${orderId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'orders',
-        filter: `id=eq.${orderId}`,
-      }, () => fetchOrder())
+    load()
+    const ch = supabase.channel(`order-${id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${id}` }, load)
       .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [id, load])
 
-    return () => { supabase.removeChannel(channel) }
-  }, [orderId, fetchOrder])
+  if (!order) return <div className="min-h-screen dark-bg flex items-center justify-center text-amber-400 animate-pulse text-3xl">🍺</div>
 
-  if (!order) {
-    return (
-      <div className="min-h-screen bg-amber-50 flex items-center justify-center">
-        <div className="text-amber-600 animate-pulse">Betöltés...</div>
-      </div>
-    )
-  }
-
-  const currentStepIdx = STATUS_STEPS.indexOf(order.status)
+  const currentStep = STEPS.findIndex(s => s.key === order.status)
   const isReady = order.status === 'ready'
-  const isDone = order.status === 'completed' || order.status === 'delivered'
-
-  const stepIcons = [
-    <Clock className="w-5 h-5" key="clock" />,
-    <CheckCircle className="w-5 h-5" key="check" />,
-    <ChefHat className="w-5 h-5" key="chef" />,
-    <Bell className="w-5 h-5" key="bell" />,
-    <Package className="w-5 h-5" key="pkg" />,
-    <CheckCircle className="w-5 h-5" key="done" />,
-  ]
+  const isDone = ['completed','delivered','cancelled'].includes(order.status)
 
   return (
-    <div className="min-h-screen bg-amber-50">
+    <div className="min-h-screen dark-bg">
       {/* Header */}
-      <div className={`${isReady ? 'bg-green-600' : 'bg-amber-950'} text-white px-4 pt-12 pb-8 transition-colors duration-500`}>
-        <button onClick={() => router.push('/customer')} className="flex items-center gap-2 text-amber-300 mb-6">
-          <ArrowLeft className="w-5 h-5" /> Vissza
-        </button>
-
-        <div className="text-center">
-          {isReady && (
-            <div className="text-6xl mb-3 animate-pulse-ring inline-block">🔔</div>
-          )}
-          <h1 className="text-2xl font-bold" style={{ fontFamily: 'Playfair Display, serif' }}>
-            {order.order_number}
-          </h1>
-          <p className="text-amber-300/80 mt-1">{(order as any).venue?.name}</p>
-
-          <div className={`mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm ${
-            isReady ? 'bg-white/20' : 'bg-amber-900/60'
-          }`}>
-            {ORDER_STATUS_LABELS[order.status]}
-          </div>
+      <div className={`px-4 pt-12 pb-8 text-center transition-colors duration-700 ${isReady ? 'bg-green-900/50' : ''}`}>
+        <button onClick={() => router.push('/customer')} className="absolute top-12 left-4 text-white/50 text-sm">← Vissza</button>
+        {isReady && <div className="text-6xl mb-3 anim-pulse">🔔</div>}
+        <h1 className="text-3xl font-black text-amber-400" style={{ fontFamily: 'Bebas Neue, sans-serif' }}>{order.order_number}</h1>
+        <p className="text-white/50 text-sm mt-1">{order.venue?.name}</p>
+        <div className="mt-3 inline-block px-4 py-2 rounded-full bg-white/10 text-white font-semibold text-sm">
+          {STATUS_LABELS[order.status]}
         </div>
       </div>
 
-      <div className="px-4 py-6 space-y-5">
-        {/* Progress tracker */}
+      <div className="px-4 space-y-4 pb-10">
+        {/* Progress */}
         {!isDone && (
-          <div className="bg-white rounded-2xl p-5 border border-amber-100">
-            <h2 className="font-bold text-amber-950 mb-4 text-sm uppercase tracking-wide">Rendelés állapota</h2>
+          <div className="glass-card p-5">
+            <h2 className="text-white/60 text-xs uppercase tracking-wider mb-4">Rendelés állapota</h2>
             <div className="space-y-3">
-              {['Beérkezett', 'Elfogadva', 'Készítés alatt', 'Kész', 'Átadva'].map((label, i) => {
-                const done = i < currentStepIdx
-                const active = i === currentStepIdx
+              {STEPS.map((step, i) => {
+                const done = i < currentStep
+                const active = i === currentStep
                 return (
-                  <div key={label} className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
-                      done ? 'bg-green-500 text-white' :
-                      active ? 'bg-amber-500 text-white animate-pulse' :
-                      'bg-amber-100 text-amber-300'
-                    }`}>
-                      {stepIcons[i]}
+                  <div key={step.key} className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-lg flex-shrink-0 transition-all ${done ? 'bg-green-500' : active ? 'bg-amber-500 anim-pulse' : 'bg-white/10'}`}>
+                      {step.icon}
                     </div>
-                    <span className={`text-sm font-medium ${active ? 'text-amber-950' : done ? 'text-green-700' : 'text-amber-300'}`}>
-                      {label}
-                    </span>
-                    {active && (
-                      <span className="ml-auto text-xs text-amber-500 animate-pulse">● Folyamatban</span>
-                    )}
+                    <span className={`text-sm font-medium ${active ? 'text-white' : done ? 'text-green-400' : 'text-white/30'}`}>{step.label}</span>
+                    {active && <span className="ml-auto text-amber-400 text-xs animate-pulse">● Folyamatban</span>}
                   </div>
                 )
               })}
@@ -125,64 +76,34 @@ export default function OrderTrackingPage() {
           </div>
         )}
 
-        {/* Order summary */}
-        <div className="bg-white rounded-2xl p-5 border border-amber-100">
-          <h2 className="font-bold text-amber-950 mb-3 text-sm uppercase tracking-wide">Rendelt tételek</h2>
+        {/* Items */}
+        <div className="glass-card p-5">
+          <h2 className="text-white/60 text-xs uppercase tracking-wider mb-3">Rendelt tételek</h2>
           <div className="space-y-2">
             {items.map(item => (
-              <div key={item.id} className="flex items-center justify-between">
-                <span className="text-sm text-amber-800">
-                  <span className="font-semibold text-amber-950">{item.quantity}×</span> {item.menu_item?.name}
-                </span>
-                <span className="text-sm font-medium text-amber-700">{formatPrice(item.total_price)}</span>
+              <div key={item.id} className="flex justify-between text-sm">
+                <span className="text-white/70"><span className="text-white font-bold">{item.quantity}×</span> {item.menu_item?.name}</span>
+                <span className="text-amber-400 font-semibold">{formatPrice(item.total_price)}</span>
               </div>
             ))}
-            {order.notes && (
-              <div className="pt-2 border-t border-amber-50">
-                <p className="text-xs text-amber-500">Megjegyzés: {order.notes}</p>
-              </div>
-            )}
+            {order.notes && <p className="text-white/30 text-xs pt-2 border-t border-white/10 mt-2">💬 {order.notes}</p>}
           </div>
-          <div className="flex justify-between pt-3 mt-3 border-t border-amber-100">
-            <span className="font-bold text-amber-950">Összesen</span>
-            <span className="font-bold text-lg text-amber-700">{formatPrice(order.total)}</span>
+          <div className="flex justify-between pt-3 mt-2 border-t border-white/10">
+            <span className="text-white font-bold">Összesen</span>
+            <span className="text-amber-400 font-black text-lg">{formatPrice(order.total)}</span>
           </div>
         </div>
 
-        {/* Order info */}
-        <div className="bg-white rounded-2xl p-5 border border-amber-100">
-          <h2 className="font-bold text-amber-950 mb-3 text-sm uppercase tracking-wide">Részletek</h2>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-amber-500">Típus</span>
-              <span className="text-amber-900 font-medium">
-                {order.order_type === 'table_service' ? '🪑 Asztali kiszolgálás' : '🍺 Pultás átvétel'}
-              </span>
-            </div>
-            {(order as any).table && (
-              <div className="flex justify-between">
-                <span className="text-amber-500">Asztal</span>
-                <span className="text-amber-900 font-medium">#{(order as any).table.number}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-amber-500">Fizetés</span>
-              <span className="text-amber-900 font-medium">
-                {order.payment_method === 'cash' ? '💵 Készpénz' : '💳 Kártya'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-amber-500">Leadva</span>
-              <span className="text-amber-900 font-medium">{timeAgo(order.placed_at)}</span>
-            </div>
-          </div>
+        {/* Info */}
+        <div className="glass-card p-5 text-sm space-y-2">
+          <div className="flex justify-between"><span className="text-white/40">Típus</span><span className="text-white">{order.order_type === 'table_service' ? '🪑 Asztali' : '🍺 Pult'}</span></div>
+          {order.table && <div className="flex justify-between"><span className="text-white/40">Asztal</span><span className="text-white">#{order.table.number}</span></div>}
+          <div className="flex justify-between"><span className="text-white/40">Fizetés</span><span className="text-white">{order.payment_method === 'cash' ? '💵 Készpénz' : '💳 Kártya'}</span></div>
+          <div className="flex justify-between"><span className="text-white/40">Leadva</span><span className="text-white">{timeAgo(order.placed_at)}</span></div>
         </div>
 
         {isDone && (
-          <button
-            onClick={() => router.push('/customer')}
-            className="w-full bg-amber-500 text-white font-bold py-4 rounded-2xl"
-          >
+          <button onClick={() => router.push('/customer')} className="btn-kapakka">
             Vissza a főoldalra
           </button>
         )}

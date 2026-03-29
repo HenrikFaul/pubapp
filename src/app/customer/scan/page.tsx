@@ -3,35 +3,28 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, QrCode, Keyboard } from 'lucide-react'
-import toast from 'react-hot-toast'
 
 export default function ScanPage() {
   const router = useRouter()
-  const [mode, setMode] = useState<'scan' | 'manual'>('scan')
-  const [manualCode, setManualCode] = useState('')
-  const [scanning, setScanning] = useState(false)
+  const [manual, setManual] = useState('')
+  const [mode, setMode] = useState<'camera' | 'manual'>('camera')
+  const [cameraErr, setCameraErr] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
   useEffect(() => {
-    if (mode === 'scan') startCamera()
+    if (mode === 'camera') startCamera()
     else stopCamera()
     return () => stopCamera()
   }, [mode])
 
   async function startCamera() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      })
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
       streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-      }
-      setScanning(true)
+      if (videoRef.current) videoRef.current.srcObject = stream
     } catch {
-      toast.error('Kamera hozzáférés megtagadva. Kézi bevitel:')
+      setCameraErr(true)
       setMode('manual')
     }
   }
@@ -39,125 +32,75 @@ export default function ScanPage() {
   function stopCamera() {
     streamRef.current?.getTracks().forEach(t => t.stop())
     streamRef.current = null
-    setScanning(false)
   }
 
-  async function handleQrResult(code: string) {
-    // Look up table by QR code
-    const { data: table } = await supabase
-      .from('tables')
-      .select('*, venue:venues(*)')
-      .eq('qr_code', code)
-      .single()
-
-    if (table) {
-      stopCamera()
-      router.push(`/customer/pub/${table.venue_id}?table=${table.number}&qr=${code}`)
-    } else {
-      // Maybe it's a venue ID
-      const { data: venue } = await supabase
-        .from('venues')
-        .select('id')
-        .eq('id', code)
-        .single()
-      if (venue) {
-        stopCamera()
-        router.push(`/customer/pub/${venue.id}`)
-      } else {
-        toast.error('Érvénytelen QR kód')
-      }
-    }
+  async function resolve(code: string) {
+    // Try table QR
+    const { data: table } = await supabase.from('tables').select('*, venue:venues(*)').eq('qr_code', code).single()
+    if (table) { stopCamera(); router.push(`/customer/pub/${table.venue_id}?table=${table.number}`); return }
+    // Try venue ID
+    const { data: venue } = await supabase.from('venues').select('id').eq('id', code).single()
+    if (venue) { stopCamera(); router.push(`/customer/pub/${venue.id}`); return }
+    alert('Érvénytelen kód')
   }
 
-  async function handleManualSubmit(e: React.FormEvent) {
+  async function handleManual(e: React.FormEvent) {
     e.preventDefault()
-    if (!manualCode.trim()) return
-    await handleQrResult(manualCode.trim())
+    if (manual.trim()) resolve(manual.trim())
   }
 
   return (
-    <div className="min-h-screen bg-amber-950 text-white">
+    <div className="min-h-screen dark-bg flex flex-col">
       <div className="px-4 pt-12 pb-4 flex items-center gap-3">
-        <button onClick={() => router.back()} className="w-9 h-9 bg-amber-900/60 rounded-xl flex items-center justify-center">
-          <ArrowLeft className="w-5 h-5 text-amber-300" />
-        </button>
-        <h1 className="text-xl font-bold" style={{ fontFamily: 'Playfair Display, serif' }}>QR Kód beolvasása</h1>
+        <button onClick={() => router.back()} className="text-white/50">← Vissza</button>
+        <h1 className="text-white font-bold text-lg">QR Kód beolvasás</h1>
       </div>
 
-      {/* Mode toggle */}
-      <div className="mx-4 mb-6 flex gap-2 p-1 bg-amber-900/40 rounded-xl">
-        <button
-          onClick={() => setMode('scan')}
-          className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${mode === 'scan' ? 'bg-amber-500 text-white' : 'text-amber-400'}`}
-        >
-          <QrCode className="w-4 h-4" /> Kamera
-        </button>
-        <button
-          onClick={() => setMode('manual')}
-          className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${mode === 'manual' ? 'bg-amber-500 text-white' : 'text-amber-400'}`}
-        >
-          <Keyboard className="w-4 h-4" /> Kézi bevitel
-        </button>
+      <div className="flex gap-2 mx-4 mb-5 p-1 bg-white/10 rounded-xl">
+        {(['camera','manual'] as const).map(m => (
+          <button key={m} onClick={() => setMode(m)}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors ${mode === m ? 'bg-amber-500 text-black' : 'text-white/60'}`}>
+            {m === 'camera' ? '📷 Kamera' : '⌨️ Kézi bevitel'}
+          </button>
+        ))}
       </div>
 
-      {mode === 'scan' ? (
+      {mode === 'camera' && !cameraErr ? (
         <div className="px-4">
-          <div className="relative rounded-3xl overflow-hidden bg-black aspect-square max-w-sm mx-auto">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-            />
-            {/* Scanner overlay */}
+          <div className="relative rounded-3xl overflow-hidden bg-black aspect-square max-w-xs mx-auto">
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-56 h-56 relative">
-                <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-amber-400 rounded-tl-lg" />
-                <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-amber-400 rounded-tr-lg" />
-                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-amber-400 rounded-bl-lg" />
-                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-amber-400 rounded-br-lg" />
-                <div className="absolute inset-x-0 top-1/2 h-0.5 bg-amber-400/60 animate-pulse" />
+              <div className="w-52 h-52 relative">
+                <div className="absolute top-0 left-0 w-8 h-8 border-t-3 border-l-3 border-amber-400 rounded-tl-xl" style={{borderWidth:3}} />
+                <div className="absolute top-0 right-0 w-8 h-8 border-t-3 border-r-3 border-amber-400 rounded-tr-xl" style={{borderWidth:3}} />
+                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-3 border-l-3 border-amber-400 rounded-bl-xl" style={{borderWidth:3}} />
+                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-3 border-r-3 border-amber-400 rounded-br-xl" style={{borderWidth:3}} />
+                <div className="absolute inset-x-4 top-1/2 h-0.5 bg-amber-400/50 animate-pulse" />
               </div>
             </div>
           </div>
-          <p className="text-center text-amber-400 text-sm mt-6">
-            Tartsd a kamerát az asztalon lévő QR kód fölé
-          </p>
+          <p className="text-white/40 text-sm text-center mt-6">Tartsd a kamerát az asztalon lévő QR kód fölé</p>
 
-          {/* Demo button */}
+          {/* Demo helper */}
           <div className="mt-8 text-center">
-            <p className="text-amber-600 text-xs mb-3">Teszt (demo célra):</p>
-            <button
-              onClick={async () => {
-                // Pick a random active venue
-                const { data } = await supabase.from('venues').select('id').eq('is_active', true).limit(1).single()
-                if (data) router.push(`/customer/pub/${data.id}`)
-              }}
-              className="px-6 py-3 bg-amber-700/40 text-amber-300 rounded-xl text-sm border border-amber-700"
-            >
-              Demo kocsmát megnyitok
+            <p className="text-white/20 text-xs mb-3">Demo mód:</p>
+            <button onClick={async () => {
+              const { data } = await supabase.from('venues').select('id').eq('is_active', true).limit(1).single()
+              if (data) { stopCamera(); router.push(`/customer/pub/${data.id}`) }
+              else alert('Nincs aktív helyszín az adatbázisban')
+            }} className="text-amber-500 text-sm underline">
+              Demo helyszín megnyitása
             </button>
           </div>
         </div>
       ) : (
         <div className="px-4 max-w-sm mx-auto">
-          <form onSubmit={handleManualSubmit} className="space-y-4">
+          <form onSubmit={handleManual} className="space-y-4">
             <div>
-              <label className="text-amber-300 text-sm mb-2 block">
-                Add meg az asztal kódját vagy a kocsma azonosítóját
-              </label>
-              <input
-                value={manualCode}
-                onChange={e => setManualCode(e.target.value)}
-                placeholder="pl. abc123..."
-                className="w-full bg-amber-900/50 border border-amber-700 text-amber-100 rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 placeholder:text-amber-700"
-                autoFocus
-              />
+              <label className="text-white/60 text-sm mb-2 block">Asztal kódja vagy helyszín azonosítója</label>
+              <input value={manual} onChange={e => setManual(e.target.value)} className="kap-input" placeholder="pl. abc123..." autoFocus />
             </div>
-            <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-white font-bold py-3 rounded-xl">
-              Megnyitás
-            </button>
+            <button type="submit" className="btn-kapakka">Megnyitás</button>
           </form>
         </div>
       )}

@@ -1,104 +1,220 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --amber: #F59E0B;
-  --dark: #1A0A00;
-  --brown: #3D1F00;
-  --gold: #D97706;
-  --cream: #FEF3C7;
-  --muted: #78350F;
-  --bg: #FFFBF5;
-  --surface: #FFFFFF;
-  --border: #E8D5B7;
-  --text: #1A0A00;
-  --text-muted: #78350F;
+  --kapakka-dark: #1C0A00;
+  --kapakka-brown: #2C1400;
+  --kapakka-mid: #4A2200;
+  --kapakka-amber: #F5A623;
+  --kapakka-amber-dark: #D4891A;
+  --kapakka-cream: #FFF8F0;
+  --kapakka-text: #FFFFFF;
+  --kapakka-muted: rgba(255,255,255,0.6);
+  --kapakka-border: rgba(255,255,255,0.12);
+  --kapakka-card: rgba(255,255,255,0.07);
 }
 
-* {
-  box-sizing: border-box;
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--kapakka-dark);
+  color: var(--kapakka-text);
+  min-height: 100vh;
 }
 
-html {
-  font-family: 'DM Sans', sans-serif;
-  background-color: var(--bg);
-  color: var(--text);
+/* Wood texture background */
+.wood-bg {
+  background-color: var(--kapakka-brown);
+  background-image: 
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 60px,
+      rgba(0,0,0,0.03) 60px,
+      rgba(0,0,0,0.03) 61px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      transparent,
+      transparent 8px,
+      rgba(0,0,0,0.02) 8px,
+      rgba(0,0,0,0.02) 9px
+    );
 }
 
-h1, h2, h3 {
-  font-family: 'Playfair Display', serif;
+.dark-bg {
+  background: linear-gradient(180deg, #1C0A00 0%, #2C1400 50%, #1C0A00 100%);
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #f1f1f1; }
-::-webkit-scrollbar-thumb { background: var(--amber); border-radius: 3px; }
-
-/* PWA safe areas */
-.safe-top { padding-top: env(safe-area-inset-top); }
-.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-
-/* Order status badge */
-.status-badge {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+/* Glass card */
+.glass-card {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
 }
 
-/* Card styles */
-.card {
-  @apply bg-white rounded-xl border border-amber-100 shadow-sm;
+/* White card */
+.white-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  color: #1C0A00;
 }
 
-/* Bottom nav for mobile */
+/* Kapakka button */
+.btn-kapakka {
+  background: var(--kapakka-amber);
+  color: #1C0A00;
+  font-weight: 700;
+  padding: 14px 24px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+.btn-kapakka:hover { background: var(--kapakka-amber-dark); transform: translateY(-1px); }
+.btn-kapakka:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.btn-outline {
+  background: transparent;
+  color: white;
+  border: 2px solid rgba(255,255,255,0.3);
+  padding: 13px 24px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  transition: all 0.2s;
+  width: 100%;
+}
+.btn-outline:hover { border-color: var(--kapakka-amber); color: var(--kapakka-amber); }
+
+/* Input */
+.kap-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.08);
+  border: 1.5px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  color: white;
+  font-size: 15px;
+  outline: none;
+  transition: border 0.2s;
+}
+.kap-input::placeholder { color: rgba(255,255,255,0.35); }
+.kap-input:focus { border-color: var(--kapakka-amber); }
+
+.kap-input-dark {
+  width: 100%;
+  padding: 11px 14px;
+  background: white;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  color: #1C0A00;
+  font-size: 14px;
+  outline: none;
+  transition: border 0.2s;
+}
+.kap-input-dark:focus { border-color: var(--kapakka-amber); }
+
+/* Nav pill */
+.nav-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  transition: all 0.2s;
+  cursor: pointer;
+  color: rgba(255,255,255,0.5);
+  font-size: 11px;
+  font-weight: 500;
+  border: none;
+  background: none;
+}
+.nav-pill.active { color: var(--kapakka-amber); }
+.nav-pill:hover { color: white; }
+
+/* Bottom nav */
 .bottom-nav {
-  @apply fixed bottom-0 left-0 right-0 bg-white border-t border-amber-100 safe-bottom z-50;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(20, 8, 0, 0.95);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 8px 0 env(safe-area-inset-bottom, 8px);
+  z-index: 50;
 }
 
-/* Kapakka button styles */
-.btn-primary {
-  @apply bg-amber-500 hover:bg-amber-600 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+/* Menu item strip (original Kapakka style) */
+.menu-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255,255,255,0.92);
+  border-radius: 8px;
+  padding: 14px 20px;
+  margin-bottom: 12px;
+  color: #1C0A00;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+.menu-strip:hover { background: white; transform: translateX(3px); }
+.menu-strip.active { background: var(--kapakka-amber); }
+
+/* Pub card */
+.pub-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
 }
 
-.btn-secondary {
-  @apply bg-amber-50 hover:bg-amber-100 text-amber-900 font-medium px-4 py-2 rounded-lg border border-amber-200 transition-colors;
-}
-
-.btn-ghost {
-  @apply hover:bg-amber-50 text-amber-900 font-medium px-4 py-2 rounded-lg transition-colors;
-}
-
-/* Input styles */
-.input {
-  @apply w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white;
-}
+/* Status badge */
+.badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.badge-pending { background: rgba(245,166,35,0.2); color: #F5A623; }
+.badge-accepted { background: rgba(59,130,246,0.2); color: #93c5fd; }
+.badge-preparing { background: rgba(249,115,22,0.2); color: #fdba74; }
+.badge-ready { background: rgba(34,197,94,0.2); color: #86efac; }
+.badge-done { background: rgba(156,163,175,0.2); color: #9ca3af; }
+.badge-cancelled { background: rgba(239,68,68,0.2); color: #fca5a5; }
 
 /* Animations */
-@keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
+@keyframes slideUp { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+.anim-up { animation: slideUp 0.3s ease-out; }
+.anim-pulse { animation: pulse 2s infinite; }
 
-@keyframes pulse-ring {
-  0% { transform: scale(0.85); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
-  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
-  100% { transform: scale(0.85); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
-}
-
-.animate-slide-up { animation: slideUp 0.3s ease-out; }
-.animate-pulse-ring { animation: pulse-ring 1.5s ease-in-out infinite; }
-
-/* Admin panel specific */
+/* Admin specific */
 .admin-sidebar {
-  @apply fixed left-0 top-0 bottom-0 w-56 bg-stone-900 text-stone-100 flex flex-col z-40;
+  position: fixed; top:0; left:0; bottom:0; width:220px;
+  background: #111; border-right: 1px solid rgba(255,255,255,0.08);
+  display: flex; flex-direction: column; z-index: 40;
 }
+.admin-main { margin-left: 220px; min-height: 100vh; background: #f8f5f2; }
+@media(max-width:768px) { .admin-sidebar{display:none} .admin-main{margin-left:0} }
 
-.admin-content {
-  @apply ml-56 min-h-screen bg-stone-50;
-}
+.scrollbar-hide::-webkit-scrollbar { display:none; }
+.scrollbar-hide { -ms-overflow-style:none; scrollbar-width:none; }
 
-@media (max-width: 768px) {
-  .admin-sidebar { display: none; }
-  .admin-content { margin-left: 0; }
-}
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
