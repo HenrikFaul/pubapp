@@ -20,7 +20,7 @@ const FAQS = [
   },
   {
     q: 'Hogyan tudok munkatársat felvenni?',
-    a: 'A "Konfigurátor" > "Munkatársak" fülön add meg az email cím'ét. A meghívott a rendszerbe regisztráció után automatikusan hozzákapcsolódik.',
+    a: "A \"Konfigurátor\" > \"Munkatársak\" fülön add meg az email címét. A meghívott a rendszerbe regisztráció után automatikusan hozzákapcsolódik.",
   },
   {
     q: 'Mi az a VIP rendelés?',
