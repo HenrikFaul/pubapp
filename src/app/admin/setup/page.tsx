@@ -27,7 +27,8 @@ export default function SetupVenuePage() {
   function update(key: string, value: unknown) {
     setForm(p => ({ ...p, [key]: value }))
     if (key === 'name') {
-      setForm(p => ({ ...p, slug: value.toString().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') }))
+      const str = String(value)
+      setForm(p => ({ ...p, slug: str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') }))
     }
   }
 
