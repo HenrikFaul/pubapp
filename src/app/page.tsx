@@ -17,72 +17,99 @@ export default function HomePage() {
   const [checking, setChecking] = useState(true)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
-  
-  // Prevent double redirects
-  const redirectingRef = useRef(false)
+  const hasRedirected = useRef(false)
 
   useEffect(() => {
     let mounted = true
 
+    // Safety timeout - NEVER stay on loading screen more than 4 seconds
+    const timeout = setTimeout(() => {
+      if (mounted && checking) {
+        console.warn('Auth check timeout - showing landing page')
+        setChecking(false)
+      }
+    }, 4000)
+
     async function checkAuth() {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        
-        if (!mounted || redirectingRef.current) return
+        // Use getUser() for reliable server-verified check
+        const { data: { user }, error } = await supabase.auth.getUser()
 
-        if (session?.user) {
-          redirectingRef.current = true
-          await redirectByRole(session.user.id, session.user.user_metadata)
-        } else {
+        if (!mounted) return
+
+        if (error || !user) {
+          // No valid session -> show landing page
           setChecking(false)
+          return
         }
-      } catch (error) {
-        console.error('Auth check error:', error)
+
+        // User is logged in - figure out where to send them
+        if (hasRedirected.current) return
+        hasRedirected.current = true
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role, venue_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!mounted) return
+
+        const userRole = profile?.role || (user.user_metadata?.role as string) || 'customer'
+
+        if (['admin', 'staff', 'superadmin'].includes(userRole)) {
+          if (userRole === 'admin' && !profile?.venue_id) {
+            router.replace('/admin/setup')
+          } else {
+            router.replace('/admin')
+          }
+        } else {
+          router.replace('/customer')
+        }
+      } catch (e) {
+        console.error('Auth check failed:', e)
         if (mounted) setChecking(false)
       }
     }
 
     checkAuth()
 
+    // Listen for auth changes (e.g. after OAuth redirect)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted || redirectingRef.current) return
-
-        if (event === 'SIGNED_IN' && session?.user) {
-          redirectingRef.current = true
-          
-          // Ensure profile exists
-          await supabase.from('profiles').upsert({
-            id: session.user.id,
-            email: session.user.email,
-            full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0],
-            role: session.user.user_metadata?.role || 'customer',
-          }, { onConflict: 'id' })
-
-          await redirectByRole(session.user.id, session.user.user_metadata)
+      (event, session) => {
+        if (!mounted) return
+        // Only react to SIGNED_IN from OAuth/magic link redirects
+        if (event === 'SIGNED_IN' && session?.user && !hasRedirected.current) {
+          // Re-run the check
+          checkAuth()
+        }
+        if (event === 'SIGNED_OUT') {
+          hasRedirected.current = false
+          setChecking(false)
         }
       }
     )
 
     return () => {
       mounted = false
+      clearTimeout(timeout)
       subscription?.unsubscribe()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function redirectByRole(userId: string, metadata?: Record<string, unknown>) {
+  // ─── HELPER: redirect after successful login/register ────────
+  async function redirectByRole(userId: string, fallbackRole?: string) {
     try {
-      const { data: p } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('role, venue_id')
         .eq('id', userId)
         .single()
 
-      const userRole = p?.role || (metadata?.role as string) || 'customer'
-      
+      const userRole = profile?.role || fallbackRole || 'customer'
+
       if (['admin', 'staff', 'superadmin'].includes(userRole)) {
-        // If admin has no venue yet, go to setup
-        if (!p?.venue_id && userRole === 'admin') {
+        if (userRole === 'admin' && !profile?.venue_id) {
           router.replace('/admin/setup')
         } else {
           router.replace('/admin')
@@ -91,30 +118,28 @@ export default function HomePage() {
         router.replace('/customer')
       }
     } catch {
-      // If profile lookup fails, default to customer
       router.replace('/customer')
     }
   }
+
+  // ─── AUTH HANDLERS ───────────────────────────────────────────
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setErr('')
-    
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+
     if (error) {
       setErr('Hibás email vagy jelszó.')
       setLoading(false)
       return
     }
-    
+
     if (data.user) {
-      redirectingRef.current = true
-      await redirectByRole(data.user.id, data.user.user_metadata)
+      hasRedirected.current = true
+      await redirectByRole(data.user.id, data.user.user_metadata?.role as string)
     }
   }
 
@@ -122,21 +147,21 @@ export default function HomePage() {
     e.preventDefault()
     setLoading(true)
     setErr('')
-    
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: name, role } },
     })
-    
+
     if (error) {
       setErr(error.message)
       setLoading(false)
       return
     }
-    
+
     if (data.user) {
-      // Profile is auto-created by DB trigger, but upsert just in case
+      // Ensure profile exists (trigger should handle this, but belt + suspenders)
       await supabase.from('profiles').upsert({
         id: data.user.id,
         email,
@@ -144,16 +169,23 @@ export default function HomePage() {
         role,
       }, { onConflict: 'id' })
 
-      setMsg('Regisztráció sikeres! Átirányítás...')
-      
-      redirectingRef.current = true
-      setTimeout(() => {
-        if (role === 'admin') {
-          router.replace('/admin/setup')
-        } else {
-          router.replace('/customer')
-        }
-      }, 800)
+      // Check if email confirmation is required
+      if (data.session) {
+        // User is immediately logged in (no email confirmation required)
+        hasRedirected.current = true
+        setMsg('Regisztráció sikeres! Átirányítás...')
+        setTimeout(() => {
+          if (role === 'admin') {
+            router.replace('/admin/setup')
+          } else {
+            router.replace('/customer')
+          }
+        }, 500)
+      } else {
+        // Email confirmation is required
+        setMsg('Regisztráció sikeres! Ellenőrizd az email fiókodat a megerősítő linkért.')
+        setLoading(false)
+      }
     }
   }
 
@@ -161,13 +193,13 @@ export default function HomePage() {
     e.preventDefault()
     setLoading(true)
     setErr('')
-    
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: typeof window !== 'undefined'
         ? `${window.location.origin}/`
         : '',
     })
-    
+
     if (error) {
       setErr(error.message)
     } else {
@@ -179,7 +211,7 @@ export default function HomePage() {
   async function signInWithGoogle() {
     setLoading(true)
     setErr('')
-    
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -187,12 +219,14 @@ export default function HomePage() {
         queryParams: { prompt: 'select_account' },
       },
     })
-    
+
     if (error) {
       setErr(error.message)
       setLoading(false)
     }
   }
+
+  // ─── REUSABLE UI COMPONENTS ──────────────────────────────────
 
   const GoogleButton = ({ label }: { label: string }) => (
     <button
@@ -219,21 +253,24 @@ export default function HomePage() {
     </div>
   )
 
-  // ─── LOADING STATE ───
+  // ─── LOADING SCREEN (max 4 sec then auto-shows landing) ─────
+
   if (checking) {
     return (
       <div className="min-h-screen dark-bg flex flex-col items-center justify-center gap-4">
         <div className="text-amber-400 text-5xl animate-pulse">🍺</div>
-        <p className="text-white/40 text-sm">Betöltés...</p>
+        <p className="text-white/40 text-sm">Átirányítás...</p>
       </div>
     )
   }
 
-  // ─── LANDING ───
+  // ─── LANDING ─────────────────────────────────────────────────
+
   if (mode === 'landing') {
     return (
       <div className="min-h-screen dark-bg flex flex-col">
         <div className="flex-1 flex flex-col lg:flex-row">
+          {/* Desktop left panel */}
           <div className="hidden lg:flex lg:w-1/2 xl:w-2/5 flex-col items-center justify-center px-16 border-r border-white/10">
             <div className="w-32 h-32 rounded-full border-4 border-white flex flex-col items-center justify-center mb-8">
               <span className="text-white font-bold text-sm tracking-widest">🍺 KAPAKKA</span>
@@ -244,11 +281,15 @@ export default function HomePage() {
             <p className="text-white/50 text-lg text-center">Kocsmakvíz · Rendelés · Hűségpontok</p>
           </div>
 
+          {/* Right panel / Mobile */}
           <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 lg:px-16">
+            {/* Mobile header */}
             <div className="lg:hidden text-center mb-8">
+              <div className="text-5xl mb-3">🍺</div>
               <h1 className="text-3xl font-black text-white" style={{ fontFamily: 'Bebas Neue, sans-serif', letterSpacing: '0.04em' }}>
                 KAPAKKA
               </h1>
+              <p className="text-white/40 text-sm mt-2">Rendelj okosan, várj kevesebbet</p>
             </div>
 
             <div className="w-full max-w-sm lg:max-w-md space-y-3 mb-8">
@@ -261,23 +302,39 @@ export default function HomePage() {
                 Bejelentkezés email-lel
               </button>
             </div>
+
+            {/* Features */}
+            <div className="w-full max-w-sm lg:max-w-md grid grid-cols-3 gap-3 mt-4">
+              {[
+                { icon: '📱', label: 'QR rendelés' },
+                { icon: '🧠', label: 'Kocsmakvíz' },
+                { icon: '❤️', label: 'Hűségpontok' },
+              ].map(f => (
+                <div key={f.label} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                  <div className="text-2xl mb-1">{f.icon}</div>
+                  <p className="text-white/50 text-xs">{f.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
     )
   }
 
-  // ─── LOGIN ───
+  // ─── LOGIN ───────────────────────────────────────────────────
+
   if (mode === 'login') {
     return (
       <div className="min-h-screen dark-bg flex flex-col lg:flex-row">
         <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center px-16 border-r border-white/10">
           <div className="text-8xl mb-6">🍺</div>
           <h2 className="text-4xl font-black text-white" style={{ fontFamily: 'Bebas Neue, sans-serif' }}>KAPAKKA</h2>
+          <p className="text-white/40 mt-2">Rendelj okosan, várj kevesebbet</p>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center px-6 lg:px-16">
           <div className="w-full max-w-sm lg:max-w-md">
-            <button onClick={() => setMode('landing')} className="text-white/50 text-sm mb-6 flex items-center gap-2">
+            <button onClick={() => { setMode('landing'); setErr(''); setMsg('') }} className="text-white/50 text-sm mb-6 flex items-center gap-2">
               ← Vissza
             </button>
             <h2 className="text-2xl font-bold text-white mb-6">Bejelentkezés</h2>
@@ -307,14 +364,14 @@ export default function HomePage() {
               </button>
               <button
                 type="button"
-                onClick={() => setMode('forgot')}
+                onClick={() => { setMode('forgot'); setErr(''); setMsg('') }}
                 className="w-full text-white/40 text-sm text-center py-1 hover:text-white/70"
               >
                 Elfelejtett jelszó?
               </button>
             </form>
             <div className="text-center mt-6">
-              <button onClick={() => setMode('register')} className="text-amber-400 text-sm">
+              <button onClick={() => { setMode('register'); setErr(''); setMsg('') }} className="text-amber-400 text-sm">
                 Még nincs fiókod? <span className="underline">Regisztrálj</span>
               </button>
             </div>
@@ -324,17 +381,19 @@ export default function HomePage() {
     )
   }
 
-  // ─── REGISTER ───
+  // ─── REGISTER ────────────────────────────────────────────────
+
   if (mode === 'register') {
     return (
       <div className="min-h-screen dark-bg flex flex-col lg:flex-row">
         <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center px-16 border-r border-white/10">
           <div className="text-8xl mb-6">🍺</div>
           <h2 className="text-4xl font-black text-white" style={{ fontFamily: 'Bebas Neue, sans-serif' }}>KAPAKKA</h2>
+          <p className="text-white/40 mt-2">Rendelj okosan, várj kevesebbet</p>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center px-6 lg:px-16 py-12">
           <div className="w-full max-w-sm lg:max-w-md">
-            <button onClick={() => setMode('landing')} className="text-white/50 text-sm mb-6 flex items-center gap-2">
+            <button onClick={() => { setMode('landing'); setErr(''); setMsg('') }} className="text-white/50 text-sm mb-6 flex items-center gap-2">
               ← Vissza
             </button>
             <h2 className="text-2xl font-bold text-white mb-6">Regisztráció</h2>
@@ -385,7 +444,7 @@ export default function HomePage() {
               </button>
             </form>
             <div className="text-center mt-6">
-              <button onClick={() => setMode('login')} className="text-amber-400 text-sm">
+              <button onClick={() => { setMode('login'); setErr(''); setMsg('') }} className="text-amber-400 text-sm">
                 Van már fiókom → <span className="underline">Bejelentkezés</span>
               </button>
             </div>
@@ -395,11 +454,12 @@ export default function HomePage() {
     )
   }
 
-  // ─── FORGOT PASSWORD ───
+  // ─── FORGOT PASSWORD ─────────────────────────────────────────
+
   return (
     <div className="min-h-screen dark-bg flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm lg:max-w-md bg-white/5 rounded-2xl p-8">
-        <button onClick={() => setMode('login')} className="text-white/50 text-sm mb-6 flex items-center gap-2">
+        <button onClick={() => { setMode('login'); setErr(''); setMsg('') }} className="text-white/50 text-sm mb-6 flex items-center gap-2">
           ← Vissza
         </button>
         <h2 className="text-2xl font-bold text-white mb-2">Elfelejtett jelszó</h2>
