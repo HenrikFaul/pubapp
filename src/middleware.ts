@@ -1,4 +1,4 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
@@ -10,7 +10,7 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         getAll() { return request.cookies.getAll() },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
@@ -24,63 +24,34 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
-  // Not logged in → redirect to landing
   if (!user && (path.startsWith('/customer') || path.startsWith('/admin'))) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // Logged in — check role
   if (user) {
-    // Root → redirect based on role
     if (path === '/') {
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-      const role = profile?.role ||
-        (user.user_metadata?.role as string | undefined) ||
-        'customer'
-
-      if (['admin', 'staff', 'superadmin'].includes(role)) {
+        .from('profiles').select('role').eq('id', user.id).single()
+      const role = profile?.role || (user.user_metadata?.role as string) || 'customer'
+      if (['admin','staff','superadmin'].includes(role))
         return NextResponse.redirect(new URL('/admin', request.url))
-      }
       return NextResponse.redirect(new URL('/customer', request.url))
     }
 
-    // Customer page → redirect admin users away
     if (path.startsWith('/customer')) {
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-      const role = profile?.role ||
-        (user.user_metadata?.role as string | undefined) ||
-        'customer'
-
-      if (['admin', 'staff', 'superadmin'].includes(role)) {
+        .from('profiles').select('role').eq('id', user.id).single()
+      const role = profile?.role || (user.user_metadata?.role as string) || 'customer'
+      if (['admin','staff','superadmin'].includes(role))
         return NextResponse.redirect(new URL('/admin', request.url))
-      }
     }
 
-    // Admin pages → redirect customer users away
     if (path.startsWith('/admin') && !path.startsWith('/admin/setup')) {
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-      const role = profile?.role ||
-        (user.user_metadata?.role as string | undefined) ||
-        'customer'
-
-      if (!['admin', 'staff', 'superadmin'].includes(role)) {
+        .from('profiles').select('role').eq('id', user.id).single()
+      const role = profile?.role || (user.user_metadata?.role as string) || 'customer'
+      if (!['admin','staff','superadmin'].includes(role))
         return NextResponse.redirect(new URL('/customer', request.url))
-      }
     }
   }
 
