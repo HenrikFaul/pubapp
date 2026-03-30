@@ -48,6 +48,14 @@
 - **Javítás**: `(c: any)` cast a `.map()` callback-ben.
 - **Megelőzés**: Ha SQL migrációval új oszlopokat adsz egy meglévő táblához, az adott tábla select eredményeit MINDIG `(row: any)` casttal kezeld, amíg a típusok nem lesznek újragenerálva (`supabase gen types`).
 
+### [HIBA-018] Implicit `any` a chained `.map().filter()` callbackben
+- **Dátum**: 2026-03-31 (v1.3.1)
+- **Fájl**: `src/lib/place-search.ts:98`
+- **Hibaüzenet**: `Type error: Parameter 'row' implicitly has an 'any' type.`
+- **Gyökérok**: A `rows` tömb `any[]` típusú volt, és a `rows.map(...).filter((row) => row.external_id)` láncban a `filter` callback paramétere nem kapott explicit típust. `noImplicitAny` mellett ez build hibát okozott.
+- **Javítás**: A nyers API választ `const rows: any[]` formában explicitáltam, külön `normalizedRows: ExternalPlace[]` tömbbe mapeltem, majd a filter callbacket `ExternalPlace` típussal adtam meg.
+- **Megelőzés**: Ha `any[]` tömbből több lépéses `.map().filter().reduce()` lánc készül, a köztes eredményt MINDIG nevezd el és adj neki explicit típust. A végső callback paramétereknél ne hagyatkozz implicit inference-re `strict` TypeScript beállítás mellett.
+
 ---
 
 ## 🟡 KATEGÓRIA 2: SQL / RLS / Adatbázis hibák
@@ -179,6 +187,42 @@
 - **Javítás**: A lekérdezések `maybeSingle()` / `|| []` fallback mintával készültek, és a feature nem auth-kritikus ágon fut.
 - **Megelőzés**: **SOHA** ne legyen új opcionális feature táblára épített lekérdezés auth-kritikus vagy page-blocking. Új feature tábla = null-safe, fallbackes, nem-blokkoló betöltés.
 
+
+
+## ➕ APPEND — 2026-03-31 kiegészítés
+
+### [HIBA-019] Hibás paramétertípus függvényhívásnál
+- **Dátum**: 2026-03-31
+- **Fájl**: bármely `.ts` / `.tsx` fájl új függvényhívásainál
+- **Hibaüzenet**: `Argument of type 'string' is not assignable to parameter of type 'number'.`
+- **Gyökérok**: Új függvényhívás bevezetésekor a hívott függvény vagy helper pontos type contractja nem lett ellenőrizve, ezért rossz típusú argumentum került átadásra.
+- **Javítás**: A függvény paramétertípusainak ellenőrzése után az argumentumot a várt típusra kellett igazítani, vagy a hívás elé megfelelő transzformációt kellett tenni.
+- **Megelőzés**: Új függvényhívásnál **MINDIG** ellenőrizd a paraméterlistát és a visszatérési típust a deklarációban / interface-ben. AI által generált hívást csak TypeScript ellenőrzés után fogadj el.
+
+### [HIBA-020] Hiányzó kötelező property objektum literálban
+- **Dátum**: 2026-03-31
+- **Fájl**: interface-et vagy type-ot implementáló objektumok
+- **Hibaüzenet**: `Property 'email' is missing in type '{}' but required in type 'User'.`
+- **Gyökérok**: Objektum összeállításakor egy vagy több kötelező mező kimaradt, mert a cél interface / type nem lett teljesen végignézve.
+- **Javítás**: A hiányzó required property-ket hozzá kellett adni az objektumhoz a megfelelő típussal.
+- **Megelőzés**: Interface vagy type implementálásakor **MINDIG** checklist alapján ellenőrizd, hogy minden kötelező mező szerepel-e. `strict` TypeScript beállítás mellett ne hagyatkozz csak az AI által generált objektumra.
+
+### [HIBA-021] Nem létező import / API / package hivatkozás
+- **Dátum**: 2026-03-31
+- **Fájl**: bármely importot vagy külső API-t használó `.ts` / `.tsx` fájl
+- **Hibaüzenet**: `Module not found` / `Cannot resolve ...` / nem létező export használata
+- **Gyökérok**: Olyan package, export vagy API került be a kódba, ami a projekt verziójában vagy az adott könyvtárban valójában nem létezik.
+- **Javítás**: A hivatkozást a hivatalos dokumentáció és a tényleges exportlista alapján valós package-re / API-ra / importra kellett cserélni.
+- **Megelőzés**: Új import vagy API használata előtt **MINDIG** ellenőrizd a hivatalos docsot és a tényleges exportokat. Soha ne fogadj el ellenőrzés nélkül AI által „kitalált” csomag- vagy API-nevet.
+
+### [HIBA-022] RLS policy kezdeti túlbonyolítása
+- **Dátum**: 2026-03-31
+- **Fájl**: Supabase RLS policy-k
+- **Hibaüzenet**: Váratlan `permission denied` / indokolatlanul blokkolt lekérdezések
+- **Gyökérok**: Az első RLS verzió túl sok logikát, JOIN-t vagy összetett feltételt tartalmazott, ezért a guardrail szerep helyett indokolatlan blokkolást okozott.
+- **Javítás**: A policy-t egyszerű, jól átlátható `auth.uid()` alapú guardrailre kellett visszavenni, és csak utána fokozatosan finomítani.
+- **Megelőzés**: RLS policy-t **MINDIG** a lehető legegyszerűbb, ellenőrizhető szabállyal indíts. Először a minimálisan szükséges hozzáférést modellezd, és csak utána bővítsd további feltételekkel.
+
 ## 📋 ELLENŐRZŐ LISTA (Minden commit előtt)
 
 - [ ] Auth-kritikus lekérdezésben NINCS FK JOIN? (profiles select = egyszerű `select('*')`)
@@ -194,8 +238,12 @@
 - [ ] Parser/syntax ellenőrzés lefutott a módosított TS/TSX fájlakon?
 - [ ] RLS policy-kban nincs cross-table JOIN más RLS-védett táblára?
 - [ ] Új SQL oszlopok esetén a kód `(: any)` castot használ?
+- [ ] Új függvényhívásoknál a paramétertípusok ellenőrizve vannak?
+- [ ] Interface / type implementálásakor minden required property ki van töltve?
+- [ ] Új import / package / API valóban létezik a használt verzióban és a hivatalos dokumentációban?
+- [ ] Új RLS policy első verziója egyszerű, átlátható `auth.uid()` alapú guardrailből indul?
 
 ---
 
-*Utoljára frissítve: 2026-03-30 — v1.3.0*
+*Utoljára frissítve: 2026-03-31 — v1.3.1*
 *Ez egy FOLYAMATOSAN BŐVÜLŐ fájl. Új hibákat MINDIG appendelj, SOHA ne törölj!*

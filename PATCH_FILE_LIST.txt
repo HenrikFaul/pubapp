@@ -1,18 +1,3 @@
-Kapakka full redesign patch (patch-only)
-
-This package contains ONLY the files that need to be overwritten.
-Extract/copy these files into the ROOT of your existing repo.
-
-Files included:
-- src/app/layout.tsx                     [overwrite]
-- src/app/globals.css                    [overwrite]
-- src/app/page.tsx                       [overwrite]
-- src/app/customer/page.tsx              [overwrite]
-- src/app/customer/pub/[id]/page.tsx     [overwrite]
-- src/app/admin/layout.tsx               [overwrite]
-- src/app/admin/config/page.tsx          [overwrite]
-
-Notes:
-- No database migration is included in this patch.
-- Existing functionality is intended to remain unchanged; this patch redesigns layout, visual hierarchy, responsiveness, and component styling.
-- If you already applied the previous runtime theme switcher patch, this package builds on that setup.
+src/lib/place-search.ts
+codingLessonsLearnt.md
+changelog.md

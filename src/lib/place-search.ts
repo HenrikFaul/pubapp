@@ -63,7 +63,11 @@ export function normalizeExternalPlace(raw: any): ExternalPlace {
     price_level: raw?.price_level,
     open_now: typeof raw?.open_now === 'boolean' ? raw.open_now : raw?.is_open_now,
     description: raw?.description,
-    opening_hours_text: Array.isArray(raw?.opening_hours_text) ? raw.opening_hours_text : Array.isArray(raw?.openingHoursText) ? raw.openingHoursText : [],
+    opening_hours_text: Array.isArray(raw?.opening_hours_text)
+      ? raw.opening_hours_text
+      : Array.isArray(raw?.openingHoursText)
+        ? raw.openingHoursText
+        : [],
     tags: Array.isArray(raw?.tags) ? raw.tags : [],
     metadata: typeof raw?.metadata === 'object' && raw.metadata ? raw.metadata : raw,
   }
@@ -89,11 +93,13 @@ export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalP
     return []
   }
 
-  const rows = Array.isArray(data?.results)
+  const rows: any[] = Array.isArray(data?.results)
     ? data.results
     : Array.isArray(data)
       ? data
       : []
 
-  return rows.map((row: any) => normalizeExternalPlace(row)).filter((row) => row.external_id)
+  const normalizedRows: ExternalPlace[] = rows.map((row: any) => normalizeExternalPlace(row))
+
+  return normalizedRows.filter((row: ExternalPlace) => Boolean(row.external_id))
 }
