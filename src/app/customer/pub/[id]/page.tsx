@@ -7,13 +7,11 @@ import { formatPrice, isOpenNow } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import {
   ArrowLeft,
-  Clock3,
   MapPin,
   ShoppingBag,
   Sparkles,
   Star,
   Store,
-  WalletCards,
 } from 'lucide-react'
 
 interface CartItem {

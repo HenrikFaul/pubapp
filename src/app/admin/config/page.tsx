@@ -9,12 +9,12 @@ import { DAY_NAMES } from '@/lib/utils'
 import { DEFAULT_THEME_KEY, KAPAKKA_THEMES, type KapakkaThemeKey } from '@/lib/themes'
 import { type Venue } from '@/types'
 import {
-  Clock3,
-  CreditCard,
-  Palette,
+  Clock,
+  ShoppingBag,
+  Sparkles,
   QrCode,
   Save,
-  Settings2,
+  Settings,
   Store,
   Users,
 } from 'lucide-react'
@@ -118,11 +118,11 @@ export default function ConfigPage() {
 
   const tabs: ConfigTab[] = [
     { id: 'venue', label: 'Venue', short: 'Alapadatok és megjelenés', icon: <Store className="h-4 w-4" /> },
-    { id: 'hours', label: 'Nyitvatartás', short: 'Heti működés és zárva napok', icon: <Clock3 className="h-4 w-4" /> },
-    { id: 'payment', label: 'Fizetés és szolgáltatások', short: 'Elfogadott fizetés, szolgáltatás típusok', icon: <CreditCard className="h-4 w-4" /> },
-    { id: 'tables', label: 'Asztalok', short: 'QR asztalok és kapacitás', icon: <Settings2 className="h-4 w-4" /> },
+    { id: 'hours', label: 'Nyitvatartás', short: 'Heti működés és zárva napok', icon: <Clock className="h-4 w-4" /> },
+    { id: 'payment', label: 'Fizetés és szolgáltatások', short: 'Elfogadott fizetés, szolgáltatás típusok', icon: <ShoppingBag className="h-4 w-4" /> },
+    { id: 'tables', label: 'Asztalok', short: 'QR asztalok és kapacitás', icon: <Settings className="h-4 w-4" /> },
     { id: 'staff', label: 'Munkatársak', short: 'Stáb és jogosultság előkészítés', icon: <Users className="h-4 w-4" /> },
-    { id: 'appearance', label: 'Design', short: 'Aktív Kapakka skin kiválasztása', icon: <Palette className="h-4 w-4" /> },
+    { id: 'appearance', label: 'Design', short: 'Aktív Kapakka skin kiválasztása', icon: <Sparkles className="h-4 w-4" /> },
   ]
 
   return (
@@ -131,7 +131,7 @@ export default function ConfigPage() {
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_0.85fr] lg:items-end">
           <div>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-black/5 bg-white/70 px-3 py-2 text-xs font-bold uppercase tracking-[0.22em] text-[color:var(--admin-subtle)]">
-              <Palette className="h-4 w-4 text-[color:var(--accent)]" />
+              <Sparkles className="h-4 w-4 text-[color:var(--accent)]" />
               Konfigurátor és design vezérlés
             </div>
             <h1 className="text-3xl font-bold text-[color:var(--admin-heading)] md:text-4xl">A venue működését és a teljes app kinézetét itt hangolod össze.</h1>
@@ -344,7 +344,7 @@ export default function ConfigPage() {
                 <p className="mt-2 text-sm text-[color:var(--admin-muted)]">A vendégek asztalhoz rendelése és a QR funnel itt alapozható meg.</p>
               </div>
               <button onClick={addTable} className="btn-kapakka w-auto px-5 py-3">
-                <Settings2 className="h-4 w-4" />
+                <Settings className="h-4 w-4" />
                 Asztal hozzáadása
               </button>
             </div>
@@ -490,7 +490,7 @@ export default function ConfigPage() {
             <div className="flex flex-col gap-3 border-t border-black/5 pt-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-[color:var(--admin-muted)]">A kiválasztott design azonnal megjelenik a vendég és az admin felületen is.</p>
               <button onClick={saveTheme} disabled={themeSaving} className="btn-kapakka sm:w-auto sm:px-6">
-                <Palette className="h-4 w-4" />
+                <Sparkles className="h-4 w-4" />
                 {themeSaving ? 'Design mentése...' : 'Design aktiválása'}
               </button>
             </div>

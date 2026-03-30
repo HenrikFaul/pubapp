@@ -5,15 +5,14 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import {
   ArrowLeft,
-  ArrowRight,
-  Beer,
-  Gamepad2,
-  Heart,
-  QrCode,
-  ShieldCheck,
-  Sparkles,
+  ChevronRight,
   Store,
-  WalletCards,
+  Zap,
+  Star,
+  QrCode,
+  Shield,
+  Sparkles,
+  ShoppingBag,
 } from 'lucide-react'
 
 type Mode = 'landing' | 'login' | 'register' | 'forgot'
@@ -22,7 +21,7 @@ function AppMark() {
   return (
     <div className="inline-flex items-center gap-3">
       <div className="h-12 w-12 rounded-2xl border border-white/10 bg-white/10 flex items-center justify-center shadow-2xl">
-        <Beer className="h-6 w-6 text-amber-400" />
+        <Store className="h-6 w-6 text-amber-400" />
       </div>
       <div>
         <p className="text-xs uppercase tracking-[0.34em] text-white/40">Kapakka</p>
@@ -300,8 +299,8 @@ export default function HomePage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <ShowcaseFeature icon={<QrCode className="h-5 w-5" />} title="QR rendelés" text="Gyors belépés az asztalhoz, kevesebb súrlódás, gyorsabb fogyasztás." />
-            <ShowcaseFeature icon={<Gamepad2 className="h-5 w-5" />} title="Játékok" text="Kocsmakvíz és party játékok, amelyek bent tartják a társaságot." />
-            <ShowcaseFeature icon={<Heart className="h-5 w-5" />} title="Hűségpontok" text="Visszatérő vendégek ösztönzése közvetlenül az élményben." />
+            <ShowcaseFeature icon={<Zap className="h-5 w-5" />} title="Játékok" text="Kocsmakvíz és party játékok, amelyek bent tartják a társaságot." />
+            <ShowcaseFeature icon={<Star className="h-5 w-5" />} title="Hűségpontok" text="Visszatérő vendégek ösztönzése közvetlenül az élményben." />
             <ShowcaseFeature icon={<Store className="h-5 w-5" />} title="Venue üzemeltetés" text="Rendeléskezelés, étlap, riportok és konfiguráció egy adminból." />
           </div>
         </section>
@@ -335,7 +334,7 @@ export default function HomePage() {
     return (
       <div className="app-shell flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
         <div className="inline-flex h-20 w-20 items-center justify-center rounded-[28px] border border-white/10 bg-white/10 text-amber-400 shadow-2xl">
-          <Beer className="h-10 w-10 anim-pulse" />
+          <Store className="h-10 w-10 anim-pulse" />
         </div>
         <p className="text-sm text-white/50">Kapakka betöltése...</p>
       </div>
@@ -351,7 +350,7 @@ export default function HomePage() {
               <AppMark />
               <div className="mt-10 max-w-2xl">
                 <div className="section-kicker mb-5">
-                  <ShieldCheck className="h-4 w-4" />
+                  <Shield className="h-4 w-4" />
                   QR rendelés · digitális étlap · játékok · hűség
                 </div>
                 <h1 className="section-title">Tedd a vendégutat gyorsabbá, játékosabbá és profitábilisabbá.</h1>
@@ -362,9 +361,9 @@ export default function HomePage() {
 
               <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <ShowcaseFeature icon={<QrCode className="h-5 w-5" />} title="QR belépés" text="Asztalról vagy pultból pár érintéssel." />
-                <ShowcaseFeature icon={<WalletCards className="h-5 w-5" />} title="Gyors rendelés" text="Kevesebb sorban állás, több fogyasztás." />
-                <ShowcaseFeature icon={<Gamepad2 className="h-5 w-5" />} title="Social játékok" text="Fiatalos, megosztható kocsmaélmény." />
-                <ShowcaseFeature icon={<Heart className="h-5 w-5" />} title="Hűségpontok" text="Visszatérő vendégek ösztönzése." />
+                <ShowcaseFeature icon={<ShoppingBag className="h-5 w-5" />} title="Gyors rendelés" text="Kevesebb sorban állás, több fogyasztás." />
+                <ShowcaseFeature icon={<Zap className="h-5 w-5" />} title="Social játékok" text="Fiatalos, megosztható kocsmaélmény." />
+                <ShowcaseFeature icon={<Star className="h-5 w-5" />} title="Hűségpontok" text="Visszatérő vendégek ösztönzése." />
               </div>
             </div>
 
@@ -405,7 +404,7 @@ export default function HomePage() {
                 <Divider />
                 <button className="btn-kapakka text-base" onClick={() => setMode('register')}>
                   Regisztráció email-lel
-                  <ArrowRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4" />
                 </button>
                 <button className="btn-outline" onClick={() => setMode('login')}>
                   Bejelentkezés email-lel
@@ -415,8 +414,8 @@ export default function HomePage() {
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
                 {[
                   { icon: <QrCode className="h-5 w-5" />, label: 'QR rendelés' },
-                  { icon: <Gamepad2 className="h-5 w-5" />, label: 'Kocsmakvíz' },
-                  { icon: <Heart className="h-5 w-5" />, label: 'Hűségpontok' },
+                  { icon: <Zap className="h-5 w-5" />, label: 'Kocsmakvíz' },
+                  { icon: <Star className="h-5 w-5" />, label: 'Hűségpontok' },
                 ].map((item) => (
                   <div key={item.label} className="feature-card p-4 text-center">
                     <div className="mx-auto mb-3 inline-flex rounded-2xl border border-white/10 bg-white/10 p-3 text-amber-400">{item.icon}</div>
@@ -487,7 +486,7 @@ export default function HomePage() {
           <input className="kap-input" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required />
           <button className="btn-kapakka text-base" type="submit" disabled={loading}>
             {loading ? 'Regisztráció...' : 'Regisztráció'}
-            {!loading && <ArrowRight className="h-4 w-4" />}
+            {!loading && <ChevronRight className="h-4 w-4" />}
           </button>
         </form>
         <div className="mt-6 text-center">

@@ -6,19 +6,17 @@ import { supabase } from '@/lib/supabase'
 import { formatPrice, isOpenNow, STATUS_BADGE, STATUS_LABELS, timeAgo } from '@/lib/utils'
 import {
   Bell,
-  Brain,
+  Activity,
   ChevronRight,
   ClipboardList,
-  Gamepad2,
-  Gift,
-  Heart,
-  House,
-  MapPin,
-  QrCode,
+  Zap,
   Sparkles,
   Star,
+  LayoutDashboard,
+  MapPin,
+  QrCode,
   Store,
-  UserCircle2,
+  User,
 } from 'lucide-react'
 
 type Tab = 'home' | 'pubs' | 'games' | 'orders' | 'profile'
@@ -102,7 +100,7 @@ export default function CustomerPage() {
     {
       label: 'Játékok',
       caption: 'Kvíz, truth or dare és társas hangulatfokozók.',
-      icon: <Gamepad2 className="h-5 w-5" />,
+      icon: <Zap className="h-5 w-5" />,
       action: () => setTab('games'),
     },
     {
@@ -114,11 +112,11 @@ export default function CustomerPage() {
   ]
 
   const navItems: Array<{ id: Tab; label: string; icon: ReactNode }> = [
-    { id: 'home', label: 'Főoldal', icon: <House className="h-5 w-5" /> },
+    { id: 'home', label: 'Főoldal', icon: <LayoutDashboard className="h-5 w-5" /> },
     { id: 'pubs', label: 'Kocsmák', icon: <Store className="h-5 w-5" /> },
-    { id: 'games', label: 'Játékok', icon: <Gamepad2 className="h-5 w-5" /> },
+    { id: 'games', label: 'Játékok', icon: <Zap className="h-5 w-5" /> },
     { id: 'orders', label: 'Rendelések', icon: <ClipboardList className="h-5 w-5" /> },
-    { id: 'profile', label: 'Profil', icon: <UserCircle2 className="h-5 w-5" /> },
+    { id: 'profile', label: 'Profil', icon: <User className="h-5 w-5" /> },
   ]
 
   function renderSectionHeader(title: string, subtitle: string, backTarget?: Tab) {
@@ -180,7 +178,7 @@ export default function CustomerPage() {
         <div className="relative z-10 grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
           <div>
             <div className="section-kicker mb-4">
-              <Gift className="h-4 w-4" />
+              <Sparkles className="h-4 w-4" />
               fiatalos, gyors és fogyasztásra ösztönző élmény
             </div>
             <h1 className="section-title">
@@ -357,7 +355,7 @@ export default function CustomerPage() {
           {
             title: 'Kocsmakvíz',
             subtitle: 'Teszteld a tudásod és versenyezz a barátokkal.',
-            icon: <Brain className="h-7 w-7" />,
+            icon: <Activity className="h-7 w-7" />,
             style: 'linear-gradient(135deg, #6d28d9, #9333ea)',
             path: '/customer/games/quiz',
           },
@@ -448,7 +446,7 @@ export default function CustomerPage() {
           </div>
           <div className="mt-6 rounded-[24px] border border-amber-500/20 bg-amber-500/10 p-5">
             <div className="flex items-center gap-3 text-amber-400">
-              <Heart className="h-6 w-6" />
+              <Star className="h-6 w-6" />
               <span className="text-sm uppercase tracking-[0.24em]">Hűségpontok</span>
             </div>
             <p className="mt-3 text-4xl font-black text-white">{profile?.loyalty_points || 0}</p>
