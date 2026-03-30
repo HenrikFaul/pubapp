@@ -118,7 +118,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (authState === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#f5f0eb' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--admin-bg)' }}>
         <div className="text-amber-500 text-4xl animate-pulse">🍺</div>
       </div>
     )
@@ -126,7 +126,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (authState === 'no-auth') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: '#f5f0eb' }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: 'var(--admin-bg)' }}>
         <div className="text-4xl">🔒</div>
         <h1 className="text-stone-800 text-xl font-bold">Bejelentkezés szükséges</h1>
         <p className="text-stone-500 text-sm">Az admin panel eléréséhez be kell jelentkezned.</p>
@@ -139,7 +139,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (authState === 'no-permission') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: '#f5f0eb' }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: 'var(--admin-bg)' }}>
         <div className="text-4xl">⛔</div>
         <h1 className="text-stone-800 text-xl font-bold">Nincs hozzáférésed</h1>
         <p className="text-stone-500 text-sm text-center max-w-sm">
@@ -158,7 +158,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isSuperAdmin = user?.role === 'superadmin'
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: '#f5f0eb' }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--admin-bg)' }}>
       <aside className={`admin-sidebar transition-transform duration-300 ${sideOpen ? 'translate-x-0 !flex' : ''}`}>
         <div className="px-4 py-5 border-b border-white/8 flex items-center justify-between">
           <div className="flex items-center gap-3">

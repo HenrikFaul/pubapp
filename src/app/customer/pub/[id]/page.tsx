@@ -88,7 +88,7 @@ export default function PubPage() {
   return (
     <div className="min-h-screen dark-bg pb-32">
       {/* Hero */}
-      <div className="relative h-48" style={{ background: 'linear-gradient(to bottom, #4A2200, #1C0A00)' }}>
+      <div className="relative h-48" style={{ background: 'linear-gradient(to bottom, var(--app-bg-alt), var(--app-bg))' }}>
         {venue.cover_url && <img src={venue.cover_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />}
         <button onClick={() => router.back()} className="absolute top-12 left-4 bg-black/40 text-white rounded-xl p-2 text-sm">← Vissza</button>
         <div className="absolute bottom-4 left-4 right-4">
@@ -128,7 +128,7 @@ export default function PubPage() {
 
       {/* Category tabs */}
       {categories.length > 0 && (
-        <div className="sticky top-0 z-10 bg-kapakka-dark/95 backdrop-blur-sm pt-3 pb-1">
+        <div className="sticky top-0 z-10 backdrop-blur-sm pt-3 pb-1" style={{ background: 'color-mix(in srgb, var(--app-bg) 95%, transparent)' }}>
           <div className="flex gap-2 px-4 overflow-x-auto scrollbar-hide pb-2">
             {categories.map(cat => (
               <button key={cat.id} onClick={() => setActiveCat(cat.id)}

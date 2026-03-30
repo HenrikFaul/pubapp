@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Venue } from '@/types'
 import { DAY_NAMES } from '@/lib/utils'
-import { Save, Store, Clock, CreditCard, Settings2, Users, QrCode } from 'lucide-react'
+import { Save, Store, Clock, CreditCard, Settings2, Users, QrCode, Palette } from 'lucide-react'
+import { broadcastThemeChange } from '@/components/AppShellProviders'
+import { DEFAULT_THEME_KEY, KAPAKKA_THEMES, KapakkaThemeKey } from '@/lib/themes'
 import toast from 'react-hot-toast'
 import { QRCodeSVG } from 'qrcode.react'
 
-type Tab = 'venue' | 'hours' | 'payment' | 'tables' | 'staff'
+type Tab = 'venue' | 'hours' | 'payment' | 'tables' | 'staff' | 'appearance'
 
 export default function ConfigPage() {
   const [tab, setTab] = useState<Tab>('venue')
@@ -18,6 +20,8 @@ export default function ConfigPage() {
   const [saving, setSaving] = useState(false)
   const [venueId, setVenueId] = useState<string | null>(null)
   const [newStaffEmail, setNewStaffEmail] = useState('')
+  const [themeKey, setThemeKey] = useState<KapakkaThemeKey>(DEFAULT_THEME_KEY)
+  const [themeSaving, setThemeSaving] = useState(false)
 
   useEffect(() => {
     async function init() {
@@ -29,6 +33,12 @@ export default function ConfigPage() {
 
       const { data: v } = await supabase.from('venues').select('*').eq('id', profile.venue_id).single()
       if (v) setVenue(v)
+
+      const { data: appSettings } = await supabase.from('app_settings').select('theme_key').eq('id', 'global').maybeSingle()
+      if (appSettings?.theme_key) {
+        setThemeKey(appSettings.theme_key as KapakkaThemeKey)
+        broadcastThemeChange(appSettings.theme_key)
+      }
 
       const { data: t } = await supabase.from('tables').select('*').eq('venue_id', profile.venue_id).order('number')
       setTables(t || [])
@@ -47,6 +57,23 @@ export default function ConfigPage() {
     else toast.success('Mentve!')
     setSaving(false)
   }
+
+
+async function saveTheme() {
+  setThemeSaving(true)
+  const { error } = await supabase
+    .from('app_settings')
+    .upsert({ id: 'global', theme_key: themeKey, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+
+  if (error) {
+    toast.error('A design mentése nem sikerült. Futtasd le a 002_theme_settings.sql migrációt is.')
+  } else {
+    broadcastThemeChange(themeKey)
+    toast.success('Design frissítve – redeploy nélkül érvényesült.')
+  }
+
+  setThemeSaving(false)
+}
 
   async function addTable() {
     if (!venueId) return
@@ -72,6 +99,7 @@ export default function ConfigPage() {
     { id: 'payment' as Tab, label: 'Fizetés & szolgáltatások', icon: <CreditCard className="w-4 h-4" /> },
     { id: 'tables' as Tab, label: 'Asztalok', icon: <Settings2 className="w-4 h-4" /> },
     { id: 'staff' as Tab, label: 'Munkatársak', icon: <Users className="w-4 h-4" /> },
+    { id: 'appearance' as Tab, label: 'Design', icon: <Palette className="w-4 h-4" /> },
   ]
 
   return (
@@ -265,6 +293,100 @@ export default function ConfigPage() {
             </div>
           </div>
         )}
+
+
+{tab === 'appearance' && (
+  <div className="space-y-5">
+    <div>
+      <h2 className="font-bold text-stone-700">Kapakka design választó</h2>
+      <p className="text-stone-500 text-sm mt-1">
+        Itt adminból választhatod ki, melyik skin érvényesüljön az app teljes felületén. A mentés redeploy nélkül lép életbe.
+      </p>
+    </div>
+
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {KAPAKKA_THEMES.map(theme => {
+        const active = theme.key === themeKey
+        return (
+          <button
+            type="button"
+            key={theme.key}
+            onClick={() => {
+              setThemeKey(theme.key)
+              broadcastThemeChange(theme.key)
+            }}
+            className={`text-left rounded-2xl border p-4 transition-all ${active ? 'border-amber-500 ring-2 ring-amber-200' : 'border-stone-200 hover:border-stone-300'}`}
+          >
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <p className="font-bold text-stone-800 text-base">{theme.name}</p>
+                <p className="text-stone-500 text-sm mt-1">{theme.shortDescription}</p>
+              </div>
+              <div className={`px-3 py-1 rounded-full text-xs font-bold ${active ? 'bg-amber-500 text-white' : 'bg-stone-100 text-stone-500'}`}>
+                {active ? 'Aktív' : 'Választható'}
+              </div>
+            </div>
+
+            <div className="rounded-2xl overflow-hidden border border-stone-200 mb-4">
+              <div className="p-4" style={{ background: theme.customerBackground }}>
+                <div className="rounded-2xl p-4 border" style={{ background: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.14)' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-white font-bold text-sm">Vendég oldal</div>
+                    <div className="text-white/70 text-xs">QR · étlap · játékok</div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.10)' }}>
+                      <div className="text-white text-xs font-semibold mb-1">Fő akció</div>
+                      <div className="inline-flex px-3 py-2 rounded-xl font-bold text-sm" style={{ background: theme.accent, color: theme.accentText }}>
+                        QR szkennelés
+                      </div>
+                    </div>
+                    <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.10)' }}>
+                      <div className="text-white text-xs font-semibold mb-1">Kiemelés</div>
+                      <div className="text-white/80 text-sm">{theme.venueFit}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4" style={{ background: theme.adminSurface }}>
+                <div className="rounded-2xl p-4 border border-black/5 bg-white/80">
+                  <div className="flex items-center justify-between mb-3 text-stone-800 font-semibold text-sm">
+                    <span>Admin felület</span>
+                    <span className="text-stone-400">rendelés · étlap · riportok</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div className="rounded-xl px-3 py-2 font-bold" style={{ background: theme.accent, color: theme.accentText }}>Élő rendelések</div>
+                    <div className="rounded-xl px-3 py-2 bg-white text-stone-700 border border-stone-200">Étlap</div>
+                    <div className="rounded-xl px-3 py-2 bg-white text-stone-700 border border-stone-200">Riportok</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-stone-500 text-sm">
+              Ideális: <span className="font-medium text-stone-700">{theme.venueFit}</span>
+            </div>
+          </button>
+        )
+      })}
+    </div>
+
+    <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-stone-100">
+      <button
+        onClick={saveTheme}
+        disabled={themeSaving}
+        className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-bold disabled:opacity-50 transition-colors"
+      >
+        <Palette className="w-4 h-4" />
+        {themeSaving ? 'Design mentése...' : 'Design aktiválása'}
+      </button>
+      <p className="text-stone-500 text-sm">
+        Az aktuális választás azonnal átmegy a vendég és admin felületre is.
+      </p>
+    </div>
+  </div>
+)}
 
         {(tab === 'venue' || tab === 'hours' || tab === 'payment') && (
           <div className="mt-6 pt-4 border-t border-stone-100">

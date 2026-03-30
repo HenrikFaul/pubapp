@@ -197,3 +197,9 @@ export interface VenueStats {
   avg_order_value: number
   total_guests: number
 }
+
+export interface AppSetting {
+  id: string
+  theme_key: string
+  updated_at: string
+}
