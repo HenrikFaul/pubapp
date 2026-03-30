@@ -1,11 +1,34 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { isOpenNow, formatPrice, timeAgo, STATUS_LABELS, STATUS_BADGE } from '@/lib/utils'
+import { formatPrice, isOpenNow, STATUS_BADGE, STATUS_LABELS, timeAgo } from '@/lib/utils'
+import {
+  Bell,
+  Brain,
+  ChevronRight,
+  ClipboardList,
+  Gamepad2,
+  Gift,
+  Heart,
+  House,
+  MapPin,
+  QrCode,
+  Sparkles,
+  Star,
+  Store,
+  UserCircle2,
+} from 'lucide-react'
 
 type Tab = 'home' | 'pubs' | 'games' | 'orders' | 'profile'
+
+interface ShortcutCard {
+  label: string
+  caption: string
+  icon: ReactNode
+  action: () => void
+}
 
 export default function CustomerPage() {
   const router = useRouter()
@@ -18,174 +41,305 @@ export default function CustomerPage() {
   const [isAdmin, setIsAdmin] = useState(false)
 
   const init = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.replace('/'); return }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      router.replace('/')
+      return
+    }
 
     const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
 
-    // If user is admin/staff, show a link to admin panel instead of redirecting
-    // This prevents redirect loops
     if (p && ['admin', 'staff', 'superadmin'].includes(p.role)) {
       setIsAdmin(true)
     }
 
     setProfile(p)
 
-    const [{ data: v }, { data: o }] = await Promise.all([
+    const [{ data: venueData }, { data: orderData }] = await Promise.all([
       supabase.from('venues').select('*').eq('is_active', true).order('rating', { ascending: false }),
-      supabase.from('orders').select('*, venue:venues(name)').eq('customer_id', user.id).order('placed_at', { ascending: false }).limit(20),
+      supabase
+        .from('orders')
+        .select('*, venue:venues(name)')
+        .eq('customer_id', user.id)
+        .order('placed_at', { ascending: false })
+        .limit(20),
     ])
-    setVenues(v || [])
-    setOrders(o || [])
+
+    setVenues(venueData || [])
+    setOrders(orderData || [])
     setLoading(false)
   }, [router])
 
-  useEffect(() => { init() }, [init])
+  useEffect(() => {
+    init()
+  }, [init])
 
-  async function logout() { await supabase.auth.signOut(); router.replace('/') }
+  async function logout() {
+    await supabase.auth.signOut()
+    router.replace('/')
+  }
 
-  const filtered = venues.filter(v =>
-    v.name.toLowerCase().includes(search.toLowerCase()) ||
-    v.address?.toLowerCase().includes(search.toLowerCase())
+  const filtered = venues.filter((venue) =>
+    venue.name.toLowerCase().includes(search.toLowerCase()) || venue.address?.toLowerCase().includes(search.toLowerCase())
   )
 
-  if (loading) return (
-    <div className="min-h-screen dark-bg flex items-center justify-center">
-      <div className="text-amber-400 text-4xl animate-pulse">🍺</div>
-    </div>
-  )
+  const quickActions: ShortcutCard[] = [
+    {
+      label: 'QR szkennelés',
+      caption: 'Belépés az asztalhoz vagy a helyszínhez egy mozdulattal.',
+      icon: <QrCode className="h-5 w-5" />,
+      action: () => router.push('/customer/scan'),
+    },
+    {
+      label: 'Kocsmák',
+      caption: 'Fedezz fel helyeket a közelben és nyisd meg az étlapot.',
+      icon: <Store className="h-5 w-5" />,
+      action: () => setTab('pubs'),
+    },
+    {
+      label: 'Játékok',
+      caption: 'Kvíz, truth or dare és társas hangulatfokozók.',
+      icon: <Gamepad2 className="h-5 w-5" />,
+      action: () => setTab('games'),
+    },
+    {
+      label: 'Rendeléseim',
+      caption: 'Kövesd élőben az aktuális és korábbi rendeléseket.',
+      icon: <ClipboardList className="h-5 w-5" />,
+      action: () => setTab('orders'),
+    },
+  ]
 
-  // Show admin redirect banner if user is admin
-  if (isAdmin) {
+  const navItems: Array<{ id: Tab; label: string; icon: ReactNode }> = [
+    { id: 'home', label: 'Főoldal', icon: <House className="h-5 w-5" /> },
+    { id: 'pubs', label: 'Kocsmák', icon: <Store className="h-5 w-5" /> },
+    { id: 'games', label: 'Játékok', icon: <Gamepad2 className="h-5 w-5" /> },
+    { id: 'orders', label: 'Rendelések', icon: <ClipboardList className="h-5 w-5" /> },
+    { id: 'profile', label: 'Profil', icon: <UserCircle2 className="h-5 w-5" /> },
+  ]
+
+  function renderSectionHeader(title: string, subtitle: string, backTarget?: Tab) {
     return (
-      <div className="min-h-screen dark-bg flex flex-col items-center justify-center gap-6 px-4">
-        <div className="text-5xl">🍺</div>
-        <h1 className="text-white text-xl font-bold text-center">Admin fiók</h1>
-        <p className="text-white/50 text-center text-sm">Ez a fiók vendéglős/admin jogosultsággal rendelkezik.</p>
-        <button
-          onClick={() => router.replace('/admin')}
-          className="btn-kapakka max-w-xs"
-        >
-          ⚡ Admin panel megnyitása
-        </button>
-        <button
-          onClick={logout}
-          className="text-white/30 text-sm hover:text-white/60 transition-colors"
-        >
-          Kijelentkezés
-        </button>
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <div className="section-kicker mb-3">
+            <Sparkles className="h-4 w-4" />
+            Kapakka vendégélmény
+          </div>
+          <h2 className="text-2xl font-bold text-white md:text-3xl">{title}</h2>
+          <p className="mt-2 max-w-2xl text-sm text-white/50 md:text-base">{subtitle}</p>
+        </div>
+        {backTarget && (
+          <button onClick={() => setTab(backTarget)} className="btn-outline hidden w-auto px-4 py-3 md:inline-flex">
+            Vissza
+          </button>
+        )}
       </div>
     )
   }
 
-  // ─── Content sections ────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="app-shell flex min-h-screen items-center justify-center">
+        <div className="inline-flex h-20 w-20 items-center justify-center rounded-[30px] border border-white/10 bg-white/10 text-amber-400 shadow-2xl">
+          <Store className="h-10 w-10 anim-pulse" />
+        </div>
+      </div>
+    )
+  }
+
+  if (isAdmin) {
+    return (
+      <div className="app-shell flex min-h-screen items-center justify-center px-4">
+        <div className="hero-card w-full max-w-xl p-6 text-center sm:p-8">
+          <div className="mx-auto mb-5 inline-flex h-20 w-20 items-center justify-center rounded-[28px] border border-white/10 bg-white/10 text-amber-400 shadow-2xl">
+            <Store className="h-9 w-9" />
+          </div>
+          <div className="section-kicker mx-auto mb-4 w-fit">Admin fiók észlelve</div>
+          <h1 className="text-3xl font-bold text-white sm:text-4xl">Ez a fiók venue oldali jogosultsággal rendelkezik.</h1>
+          <p className="mt-4 text-sm text-white/50 sm:text-base">Ugyanazzal a belépéssel megnyithatod az admin felületet, és ott válthatod az aktív dizájnt is.</p>
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <button onClick={() => router.replace('/admin')} className="btn-kapakka sm:w-auto sm:px-6">
+              Admin panel megnyitása
+            </button>
+            <button onClick={logout} className="btn-outline sm:w-auto sm:px-6">
+              Kijelentkezés
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const HomeContent = () => (
-    <div>
-      {/* Search */}
-      <div className="relative mb-5">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">🔍</span>
-        <input
-          value={search}
-          onChange={e => { setSearch(e.target.value); setTab('pubs') }}
-          placeholder="Keress kocsmanevét..."
-          className="kap-input pl-10 pr-14"
-        />
-        <button onClick={() => router.push('/customer/scan')}
-          className="absolute right-2 top-1/2 -translate-y-1/2 bg-amber-500 text-black rounded-lg px-2 py-1 text-xs font-bold">QR</button>
+    <div className="space-y-6 lg:space-y-8">
+      <div className="hero-card overflow-hidden p-5 sm:p-7">
+        <div className="relative z-10 grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+          <div>
+            <div className="section-kicker mb-4">
+              <Gift className="h-4 w-4" />
+              fiatalos, gyors és fogyasztásra ösztönző élmény
+            </div>
+            <h1 className="section-title">
+              Szia, {profile?.full_name?.split(' ')?.[0] || 'Vendég'} — ma mire vagy hangolva?
+            </h1>
+            <p className="section-subtitle mt-4 max-w-2xl">
+              Találj helyet, nyisd meg a digitális étlapot, rendelj gyorsabban és tartsd együtt a társaságot a játékokkal.
+            </p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div className="metric-card p-4">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/30">Aktív helyek</p>
+                <p className="mt-2 text-3xl font-black text-white">{venues.length}</p>
+              </div>
+              <div className="metric-card p-4">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/30">Rendelések</p>
+                <p className="mt-2 text-3xl font-black text-white">{orders.length}</p>
+              </div>
+              <div className="metric-card p-4">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/30">Hűségpontok</p>
+                <p className="mt-2 text-3xl font-black text-white">{profile?.loyalty_points || 0}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="modern-card p-4 sm:p-5">
+            <p className="text-xs uppercase tracking-[0.24em] text-white/30">Gyors indítás</p>
+            <div className="relative mt-3">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
+                <MapPin className="h-4 w-4" />
+              </span>
+              <input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setTab('pubs')
+                }}
+                placeholder="Keress helyszínre vagy címre..."
+                className="kap-input pl-11 pr-28"
+              />
+              <button onClick={() => router.push('/customer/scan')} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-2xl bg-amber-500 px-3 py-2 text-sm font-bold text-black shadow-lg transition hover:bg-amber-400">
+                QR
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-white/50">A Kapakka mobilon natív érzetű, weben pedig tágas és gyors adminisztrációt ad.</p>
+          </div>
+        </div>
       </div>
 
-      {/* Desktop: grid cards / Mobile: strips */}
-      <div className="hidden lg:grid lg:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
-        {[
-          { icon:'🍺', label:'Kocsma lista', tab:'pubs' as Tab },
-          { icon:'🎁', label:'Ajánlatok', tab:'pubs' as Tab },
-          { icon:'📱', label:'Rendeléseim', tab:'orders' as Tab },
-          { icon:'📲', label:'QR Szkennelés', action:() => router.push('/customer/scan') },
-          { icon:'🎮', label:'Játékok', tab:'games' as Tab },
-          { icon:'👤', label:'Profilom', tab:'profile' as Tab },
-        ].map(item => (
-          <button key={item.label}
-            onClick={() => item.action ? item.action() : item.tab && setTab(item.tab)}
-            className="glass-card p-6 text-left hover:bg-white/15 transition-colors flex items-center gap-4">
-            <span className="text-4xl">{item.icon}</span>
-            <span className="text-white font-bold text-lg">{item.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Mobile: strips */}
-      <div className="lg:hidden space-y-3 mb-6">
-        {[
-          {icon:'🍺', label:'KOCSMA LISTA', action:() => setTab('pubs')},
-          {icon:'🎁', label:'AJÁNLATOK', action:() => setTab('pubs')},
-          {icon:'📱', label:'RENDELÉSEIM', action:() => setTab('orders')},
-          {icon:'📲', label:'QR KÓD', action:() => router.push('/customer/scan')},
-          {icon:'🎮', label:'JÁTÉKOK', action:() => setTab('games')},
-        ].map(item => (
-          <button key={item.label} onClick={item.action} className="menu-strip w-full text-left">
-            <span className="text-2xl">{item.icon}</span>
-            <span>{item.label}</span>
-            <span className="ml-auto text-amber-500">→</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Nearby pubs */}
-      {venues.length > 0 && (
-        <div className="bg-black/40 rounded-2xl p-4">
-          <h3 className="text-white/50 text-xs uppercase tracking-widest mb-3">HELYEK A KÖZELBEN</h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-            {venues.slice(0, 6).map(v => (
-              <button key={v.id} onClick={() => router.push(`/customer/pub/${v.id}`)}
-                className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 text-left transition-colors">
-                <span className="text-amber-400 text-xl">🍺</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-semibold truncate">{v.name}</p>
-                  <p className="text-white/40 text-xs truncate">{v.address}</p>
+      <section>
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-bold text-white">Mit csinálnál most?</h3>
+            <p className="mt-1 text-sm text-white/50">A leggyakoribb vendégműveletek egy helyen.</p>
+          </div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {quickActions.map((item) => (
+            <button key={item.label} onClick={item.action} className="quick-action-card p-5 text-left">
+              <div className="mb-4 inline-flex rounded-2xl border border-white/10 bg-white/10 p-3 text-amber-400">{item.icon}</div>
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <p className="font-semibold text-white">{item.label}</p>
+                  <p className="mt-1 text-sm text-white/50">{item.caption}</p>
                 </div>
-                <span className={`text-xs font-bold flex-shrink-0 ${isOpenNow(v.opening_hours) ? 'text-green-400' : 'text-red-400'}`}>
-                  {isOpenNow(v.opening_hours) ? '● NYITVA' : '● ZÁRVA'}
-                </span>
+                <ChevronRight className="mt-0.5 h-5 w-5 flex-shrink-0 text-white/30" />
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {venues.length > 0 && (
+        <section>
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-bold text-white">Ajánlott helyek</h3>
+              <p className="mt-1 text-sm text-white/50">Nyitvatartás, digitális étlap és azonnali belépés a rendeléshez.</p>
+            </div>
+            <button onClick={() => setTab('pubs')} className="btn-outline hidden w-auto px-4 py-3 md:inline-flex">
+              Összes hely
+            </button>
+          </div>
+
+          <div className="grid gap-3 xl:grid-cols-3">
+            {venues.slice(0, 6).map((venue) => (
+              <button key={venue.id} onClick={() => router.push(`/customer/pub/${venue.id}`)} className="venue-card-modern p-4 text-left sm:p-5">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-[22px] border border-white/10 bg-white/10 text-2xl text-amber-400 shadow-xl">
+                    {venue.logo_url ? <img src={venue.logo_url} alt="" className="h-full w-full rounded-[22px] object-cover" /> : <Store className="h-7 w-7" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="truncate text-lg font-bold text-white">{venue.name}</p>
+                        <p className="mt-1 flex items-center gap-1 text-sm text-white/50">
+                          <MapPin className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">{venue.address}</span>
+                        </p>
+                      </div>
+                      <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-sm font-semibold text-amber-400">
+                        <span className="inline-flex items-center gap-1">
+                          <Star className="h-4 w-4 fill-current" />
+                          {venue.rating?.toFixed(1) || '—'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold">
+                      <span className={`rounded-full px-3 py-1 ${isOpenNow(venue.opening_hours) ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
+                        {isOpenNow(venue.opening_hours) ? 'Nyitva most' : 'Jelenleg zárva'}
+                      </span>
+                      {venue.has_table_service && <span className="rounded-full bg-white/10 px-3 py-1 text-white/60">Asztali kiszolgálás</span>}
+                    </div>
+                  </div>
+                </div>
               </button>
             ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   )
 
   const PubsContent = () => (
-    <div>
-      <div className="flex items-center gap-3 mb-4 lg:hidden">
-        <button onClick={() => setTab('home')} className="text-white/50">←</button>
-        <h2 className="text-white font-bold text-lg">Kocsma lista</h2>
-      </div>
-      <div className="relative mb-4">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">🔍</span>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Keresés..." className="kap-input pl-10" />
+    <div className="space-y-5">
+      {renderSectionHeader('Kocsma lista', 'Keresd meg a hozzád illő helyet, és nyisd meg egyből a digitális étlapot.', 'home')}
+      <div className="modern-card p-4">
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
+            <MapPin className="h-4 w-4" />
+          </span>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Keresés név vagy cím alapján..." className="kap-input pl-11" />
+        </div>
       </div>
       {filtered.length === 0 ? (
-        <div className="text-center py-16 text-white/40">Nincs találat</div>
+        <div className="modern-card p-10 text-center text-white/40">Nincs találat</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {filtered.map(v => (
-            <button key={v.id} onClick={() => router.push(`/customer/pub/${v.id}`)}
-              className="pub-card text-left p-4 flex gap-4 hover:bg-white/10 transition-colors w-full">
-              <div className="w-14 h-14 bg-amber-900/50 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">🍺</div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-white font-bold">{v.name}</p>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <span className="text-amber-400 text-xs">★</span>
-                    <span className="text-white/70 text-xs">{v.rating?.toFixed(1) || '—'}</span>
-                  </div>
+        <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((venue) => (
+            <button key={venue.id} onClick={() => router.push(`/customer/pub/${venue.id}`)} className="venue-card-modern p-5 text-left">
+              <div className="flex items-start gap-4">
+                <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-[22px] border border-white/10 bg-white/10 text-amber-400 shadow-xl">
+                  {venue.logo_url ? <img src={venue.logo_url} alt="" className="h-full w-full rounded-[22px] object-cover" /> : <Store className="h-7 w-7" />}
                 </div>
-                <p className="text-white/50 text-xs mt-1 truncate">{v.address}</p>
-                <div className="flex items-center gap-3 mt-2">
-                  <span className={`text-xs font-bold ${isOpenNow(v.opening_hours) ? 'text-green-400' : 'text-red-400'}`}>
-                    {isOpenNow(v.opening_hours) ? '● Nyitva' : '● Zárva'}
-                  </span>
-                  {v.has_table_service && <span className="text-white/30 text-xs">🪑 Table service</span>}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-lg font-bold text-white">{venue.name}</p>
+                      <p className="mt-1 truncate text-sm text-white/50">{venue.address}</p>
+                    </div>
+                    <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-sm font-semibold text-amber-400">
+                      {venue.rating?.toFixed(1) || '—'}
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold">
+                    <span className={`rounded-full px-3 py-1 ${isOpenNow(venue.opening_hours) ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
+                      {isOpenNow(venue.opening_hours) ? 'Nyitva' : 'Zárva'}
+                    </span>
+                    {venue.has_table_service && <span className="rounded-full bg-white/10 px-3 py-1 text-white/60">Table service</span>}
+                  </div>
                 </div>
               </div>
             </button>
@@ -196,24 +350,43 @@ export default function CustomerPage() {
   )
 
   const GamesContent = () => (
-    <div>
-      <div className="flex items-center gap-3 mb-5 lg:hidden">
-        <button onClick={() => setTab('home')} className="text-white/50">←</button>
-        <h2 className="text-white font-bold text-lg">Játékok</h2>
-      </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="space-y-5">
+      {renderSectionHeader('Játékok', 'Tartsd bent a társaságot még egy körre — könnyű, gyors, közösségi játékok.', 'home')}
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {[
-          {title:'KOCSMAKVÍZ', emoji:'🧠', color:'#6B21A8', sub:'Teszteld a tudásod!', path:'/customer/games/quiz'},
-          {title:'RÉSZEGSÉG MÉRŐ', emoji:'🍺', color:'#B45309', sub:'Mennyi ment le?', path:'/customer/games/drunk-o-meter'},
-          {title:'IGAZSÁG VAGY MERÉSZSÉG', emoji:'🎯', color:'#9F1239', sub:'Játssz barátaiddal!', path:'/customer/games/truth-or-dare'},
-          {title:'KOCKA JÁTÉK', emoji:'🎲', color:'#065F46', sub:'Ki iszik most?', path:'/customer/games/dice'},
-        ].map(g => (
-          <button key={g.title} onClick={() => router.push(g.path)}
-            style={{background: g.color}}
-            className="rounded-2xl p-5 text-left text-white shadow-lg hover:brightness-110 transition-all">
-            <div className="text-4xl mb-3">{g.emoji}</div>
-            <p className="font-bold text-sm leading-tight">{g.title}</p>
-            <p className="text-white/60 text-xs mt-1">{g.sub}</p>
+          {
+            title: 'Kocsmakvíz',
+            subtitle: 'Teszteld a tudásod és versenyezz a barátokkal.',
+            icon: <Brain className="h-7 w-7" />,
+            style: 'linear-gradient(135deg, #6d28d9, #9333ea)',
+            path: '/customer/games/quiz',
+          },
+          {
+            title: 'Részegség mérő',
+            subtitle: 'Számolj, nevess, és nézd meg, mennyi ment le.',
+            icon: <Store className="h-7 w-7" />,
+            style: 'linear-gradient(135deg, #c2410c, #f59e0b)',
+            path: '/customer/games/drunk-o-meter',
+          },
+          {
+            title: 'Igazság vagy merészség',
+            subtitle: 'Pár kattintás, és már indul is a társasjáték hangulat.',
+            icon: <Sparkles className="h-7 w-7" />,
+            style: 'linear-gradient(135deg, #be185d, #e11d48)',
+            path: '/customer/games/truth-or-dare',
+          },
+          {
+            title: 'Kocka játék',
+            subtitle: 'Pörgős ivós játék, ha kell egy újabb fordulat.',
+            icon: <Star className="h-7 w-7" />,
+            style: 'linear-gradient(135deg, #0f766e, #14b8a6)',
+            path: '/customer/games/dice',
+          },
+        ].map((game) => (
+          <button key={game.title} onClick={() => router.push(game.path)} className="game-card p-5 text-left text-white" style={{ background: game.style }}>
+            <div className="mb-12 inline-flex rounded-2xl border border-white/20 bg-white/10 p-3">{game.icon}</div>
+            <p className="text-xl font-bold">{game.title}</p>
+            <p className="mt-2 text-sm text-white/80">{game.subtitle}</p>
           </button>
         ))}
       </div>
@@ -221,30 +394,36 @@ export default function CustomerPage() {
   )
 
   const OrdersContent = () => (
-    <div>
-      <div className="flex items-center gap-3 mb-5 lg:hidden">
-        <button onClick={() => setTab('home')} className="text-white/50">←</button>
-        <h2 className="text-white font-bold text-lg">Rendeléseim</h2>
-      </div>
+    <div className="space-y-5">
+      {renderSectionHeader('Rendeléseim', 'Kövesd élőben a státuszt, és nyisd meg bármelyik rendelésedet részletes nézetben.', 'home')}
       {orders.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="text-5xl mb-4">📱</div>
-          <p className="text-white/50">Még nincs rendelésed</p>
-          <button onClick={() => router.push('/customer/scan')} className="btn-kapakka mt-6 max-w-xs mx-auto">QR kód szkennelés</button>
+        <div className="hero-card p-8 text-center sm:p-10">
+          <div className="mx-auto mb-5 inline-flex h-20 w-20 items-center justify-center rounded-[28px] border border-white/10 bg-white/10 text-amber-400">
+            <ClipboardList className="h-9 w-9" />
+          </div>
+          <p className="text-lg font-semibold text-white">Még nincs rendelésed</p>
+          <p className="mt-2 text-sm text-white/50">Kezdd egy QR szkenneléssel vagy válassz helyet a listából.</p>
+          <button onClick={() => router.push('/customer/scan')} className="btn-kapakka mx-auto mt-6 max-w-xs">
+            QR kód szkennelés
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {orders.map(o => (
-            <button key={o.id} onClick={() => router.push(`/customer/orders/${o.id}`)}
-              className="pub-card w-full text-left p-4 hover:bg-white/10 transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-white font-bold">{o.order_number}</span>
-                <span className={`badge ${STATUS_BADGE[o.status] || 'badge-done'}`}>{STATUS_LABELS[o.status]}</span>
+        <div className="grid gap-3 xl:grid-cols-3">
+          {orders.map((order) => (
+            <button key={order.id} onClick={() => router.push(`/customer/orders/${order.id}`)} className="venue-card-modern p-5 text-left">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.24em] text-white/30">Rendelés</p>
+                  <p className="mt-1 text-lg font-bold text-white">{order.order_number}</p>
+                </div>
+                <span className={`badge ${STATUS_BADGE[order.status] || 'badge-done'}`}>{STATUS_LABELS[order.status]}</span>
               </div>
-              <p className="text-white/50 text-sm">{o.venue?.name}</p>
-              <div className="flex justify-between mt-2 text-xs">
-                <span className="text-amber-400 font-semibold">{formatPrice(o.total)}</span>
-                <span className="text-white/30">{timeAgo(o.placed_at)}</span>
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-sm font-semibold text-white">{order.venue?.name}</p>
+                <div className="mt-3 flex items-center justify-between text-sm">
+                  <span className="font-semibold text-amber-400">{formatPrice(order.total)}</span>
+                  <span className="text-white/40">{timeAgo(order.placed_at)}</span>
+                </div>
               </div>
             </button>
           ))}
@@ -254,128 +433,133 @@ export default function CustomerPage() {
   )
 
   const ProfileContent = () => (
-    <div className="max-w-2xl">
-      <div className="flex items-center gap-3 mb-5 lg:hidden">
-        <button onClick={() => setTab('home')} className="text-white/50">←</button>
-        <h2 className="text-white font-bold text-lg">Profilom</h2>
-      </div>
-      <div className="glass-card p-5 mb-4">
-        <div className="flex items-center gap-4 mb-5">
-          <div className="w-16 h-16 bg-amber-500 rounded-full flex items-center justify-center text-2xl font-bold text-black flex-shrink-0">
-            {profile?.full_name?.[0]?.toUpperCase() || 'K'}
+    <div className="space-y-5">
+      {renderSectionHeader('Profil', 'Gyors hozzáférés a személyes adataidhoz, pontjaidhoz és legfontosabb vendégműveleteidhez.', 'home')}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_0.9fr]">
+        <div className="hero-card p-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-[24px] bg-amber-500 text-2xl font-black text-black shadow-xl">
+              {profile?.full_name?.[0]?.toUpperCase() || 'K'}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-2xl font-bold text-white">{profile?.full_name || 'Kapakka vendég'}</p>
+              <p className="truncate text-sm text-white/50">{profile?.email}</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-white font-bold text-lg">{profile?.full_name}</h3>
-            <p className="text-white/50 text-sm">{profile?.email}</p>
+          <div className="mt-6 rounded-[24px] border border-amber-500/20 bg-amber-500/10 p-5">
+            <div className="flex items-center gap-3 text-amber-400">
+              <Heart className="h-6 w-6" />
+              <span className="text-sm uppercase tracking-[0.24em]">Hűségpontok</span>
+            </div>
+            <p className="mt-3 text-4xl font-black text-white">{profile?.loyalty_points || 0}</p>
           </div>
         </div>
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center gap-4">
-          <span className="text-3xl">❤️</span>
-          <div>
-            <p className="text-white/60 text-xs uppercase tracking-wide">Hűségpontok</p>
-            <p className="text-amber-400 font-bold text-2xl">{profile?.loyalty_points || 0}</p>
-          </div>
-        </div>
-      </div>
-      <div className="space-y-2 mb-6">
-        {[
-          {icon:'📱', label:'Rendeléseim', action:() => setTab('orders')},
-          {icon:'🔔', label:'Értesítések', action:() => router.push('/customer/notifications')},
-          {icon:'🍺', label:'Kocsmák', action:() => setTab('pubs')},
-        ].map(item => (
-          <button key={item.label} onClick={item.action}
-            className="w-full flex items-center gap-4 glass-card p-4 text-left hover:bg-white/10 transition-colors">
-            <span className="text-xl">{item.icon}</span>
-            <span className="text-white font-medium">{item.label}</span>
-            <span className="ml-auto text-white/30">→</span>
+
+        <div className="space-y-3">
+          {[
+            {
+              icon: <ClipboardList className="h-5 w-5" />,
+              label: 'Rendeléseim',
+              caption: 'Korábbi és folyamatban lévő rendelések',
+              action: () => setTab('orders'),
+            },
+            {
+              icon: <Bell className="h-5 w-5" />,
+              label: 'Értesítések',
+              caption: 'Státuszok, akciók és helyszín frissítések',
+              action: () => router.push('/customer/notifications'),
+            },
+            {
+              icon: <Store className="h-5 w-5" />,
+              label: 'Kocsmák',
+              caption: 'Nyisd meg a helylistát és a digitális étlapokat',
+              action: () => setTab('pubs'),
+            },
+          ].map((item) => (
+            <button key={item.label} onClick={item.action} className="profile-option-card w-full p-4 text-left">
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl border border-white/10 bg-white/10 p-3 text-amber-400">{item.icon}</div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-white">{item.label}</p>
+                  <p className="mt-1 text-sm text-white/50">{item.caption}</p>
+                </div>
+                <ChevronRight className="h-5 w-5 flex-shrink-0 text-white/30" />
+              </div>
+            </button>
+          ))}
+
+          <button onClick={logout} className="btn-outline border-red-500/30 text-red-300 hover:bg-red-500/10 hover:text-red-200">
+            Kijelentkezés
           </button>
-        ))}
+        </div>
       </div>
-      <button onClick={logout} className="w-full py-3 rounded-xl border border-red-500/40 text-red-400 hover:border-red-400 hover:bg-red-900/10 transition-colors font-semibold">
-        Kijelentkezés
-      </button>
     </div>
   )
 
-  // ─── MAIN LAYOUT ─────────────────────────────────────────────────
   return (
-    <div className="min-h-screen dark-bg">
-      {/* Desktop: top nav */}
-      <header className="hidden lg:flex items-center justify-between px-8 py-4 border-b border-white/10 sticky top-0 z-30 backdrop-blur-sm bg-black/40">
-        <div className="flex items-center gap-3">
-          <span className="text-amber-400 text-2xl">🍺</span>
-          <span className="text-white font-black text-xl tracking-wide" style={{fontFamily:'Bebas Neue, sans-serif'}}>KAPAKKA</span>
-        </div>
-        <nav className="flex items-center gap-2">
-          {[
-            {id:'home' as Tab, label:'Főoldal'},
-            {id:'pubs' as Tab, label:'Kocsmák'},
-            {id:'games' as Tab, label:'Játékok'},
-            {id:'orders' as Tab, label:'Rendelések'},
-          ].map(item => (
-            <button key={item.id} onClick={() => setTab(item.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === item.id ? 'bg-amber-500 text-black' : 'text-white/60 hover:text-white hover:bg-white/10'}`}>
-              {item.label}
+    <div className="app-shell pb-28 md:pb-10">
+      <header className="hidden border-b border-white/10 bg-black/20 backdrop-blur-xl lg:block">
+        <div className="customer-container flex items-center justify-between py-4">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-[18px] border border-white/10 bg-white/10 text-amber-400 shadow-2xl">
+              <Store className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.34em] text-white/30">Kapakka</p>
+              <p className="text-sm text-white/70">Vendég app</p>
+            </div>
+          </div>
+
+          <nav className="flex items-center gap-2">
+            {navItems.slice(0, 4).map((item) => (
+              <button key={item.id} onClick={() => setTab(item.id)} className={`desktop-nav-pill ${tab === item.id ? 'active' : ''}`}>
+                {item.icon}
+                {item.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.push('/customer/scan')} className="btn-kapakka w-auto px-5 py-3">
+              <QrCode className="h-4 w-4" />
+              QR szkennelés
             </button>
-          ))}
-        </nav>
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/customer/scan')} className="bg-amber-500 text-black font-bold px-4 py-2 rounded-lg text-sm hover:bg-amber-400 transition-colors">
-            📲 QR Szkennelés
-          </button>
-          <button onClick={() => setTab('profile')}
-            className={`w-9 h-9 rounded-full flex items-center justify-center font-bold transition-colors ${tab === 'profile' ? 'bg-amber-500 text-black' : 'bg-white/20 text-white hover:bg-white/30'}`}>
-            {profile?.full_name?.[0]?.toUpperCase() || 'K'}
-          </button>
+            <button onClick={() => setTab('profile')} className={`inline-flex h-12 w-12 items-center justify-center rounded-[18px] border ${tab === 'profile' ? 'border-amber-500 bg-amber-500 text-black' : 'border-white/10 bg-white/10 text-white'} font-black shadow-xl transition-colors`}>
+              {profile?.full_name?.[0]?.toUpperCase() || 'K'}
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Mobile header */}
-      <div className="lg:hidden px-4 pt-12 pb-4 flex items-center justify-between">
-        <div>
-          <p className="text-white/50 text-xs uppercase tracking-widest">KAPAKKA</p>
-          <h1 className="text-white font-bold text-lg">{profile?.full_name || 'Vendég'} 🍺</h1>
+      <div className="customer-container pt-6 md:pt-8">
+        <div className="mb-6 flex items-center justify-between gap-4 lg:hidden">
+          <div>
+            <div className="section-kicker mb-3">
+              <Sparkles className="h-4 w-4" />
+              vendég oldal
+            </div>
+            <p className="text-2xl font-bold text-white">Szia, {profile?.full_name?.split(' ')?.[0] || 'Vendég'}!</p>
+            <p className="mt-1 text-sm text-white/50">Gyorsabban rendelhetsz, játszhatsz és nyomon követhetsz mindent.</p>
+          </div>
+          <button onClick={() => router.push('/customer/scan')} className="inline-flex h-12 w-12 items-center justify-center rounded-[18px] bg-amber-500 text-black shadow-xl">
+            <QrCode className="h-5 w-5" />
+          </button>
         </div>
-        <button onClick={() => setTab('profile')}
-          className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center font-bold text-black">
-          {profile?.full_name?.[0]?.toUpperCase() || 'K'}
-        </button>
+
+        {tab === 'home' && <HomeContent />}
+        {tab === 'pubs' && <PubsContent />}
+        {tab === 'games' && <GamesContent />}
+        {tab === 'orders' && <OrdersContent />}
+        {tab === 'profile' && <ProfileContent />}
       </div>
 
-      {/* Page title for desktop */}
-      {tab !== 'home' && (
-        <div className="hidden lg:block px-8 pt-8 pb-2">
-          <h2 className="text-white text-2xl font-bold">
-            {tab === 'pubs' ? '🍺 Kocsma lista' : tab === 'games' ? '🎮 Játékok' : tab === 'orders' ? '📱 Rendelések' : '👤 Profil'}
-          </h2>
-        </div>
-      )}
-
-      {/* Main content */}
-      <main className="px-4 lg:px-8 py-4 lg:py-6 pb-24 lg:pb-8">
-        {tab === 'home'    && <HomeContent />}
-        {tab === 'pubs'    && <PubsContent />}
-        {tab === 'games'   && <GamesContent />}
-        {tab === 'orders'  && <OrdersContent />}
-        {tab === 'profile' && <ProfileContent />}
-      </main>
-
-      {/* Mobile bottom nav */}
-      <nav className="lg:hidden bottom-nav safe-bottom">
-        <div className="flex justify-around py-1">
-          {[
-            {id:'home' as Tab, icon:'🏠', label:'Főoldal'},
-            {id:'pubs' as Tab, icon:'🍺', label:'Kocsmák'},
-            {id:'games' as Tab, icon:'🎮', label:'Játékok'},
-            {id:'orders' as Tab, icon:'📱', label:'Rendelések'},
-            {id:'profile' as Tab, icon:'👤', label:'Profil'},
-          ].map(item => (
-            <button key={item.id} onClick={() => setTab(item.id)} className={`nav-pill ${tab === item.id ? 'active' : ''}`}>
-              <span className="text-xl">{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
+      <nav className="mobile-tabbar lg:hidden">
+        {navItems.map((item) => (
+          <button key={item.id} onClick={() => setTab(item.id)} className={`mobile-tab-item ${tab === item.id ? 'active' : ''}`}>
+            {item.icon}
+            <span>{item.label}</span>
+          </button>
+        ))}
       </nav>
     </div>
   )

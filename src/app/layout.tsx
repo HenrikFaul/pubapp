@@ -4,7 +4,7 @@ import AppShellProviders from '@/components/AppShellProviders'
 
 export const metadata: Metadata = {
   title: 'Kapakka — Rendelj okosan, várj kevesebbet',
-  description: 'QR-kódos rendelés, kocsmakvíz, hűségpontok a legjobb vendéglátóhelyeken.',
+  description: 'QR-kódos rendelés, digitális étlap, játékok és hűségpontok modern vendéglátóhelyekhez.',
   manifest: '/manifest.json',
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Kapakka' },
 }
@@ -13,7 +13,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#1C0A00',
+  themeColor: '#14121c',
 }
 
 const themeBootScript = `

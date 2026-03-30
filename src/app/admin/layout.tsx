@@ -1,26 +1,41 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { useEffect, useMemo, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 import {
-  Zap, ClipboardList, UtensilsCrossed, Package, BarChart3, Settings, HelpCircle,
-  Menu, Bell, LogOut, Shield, ChevronRight, X, Monitor, CalendarClock, FileDown
+  Bell,
+  CalendarClock,
+  ChevronRight,
+  ClipboardList,
+  FileDown,
+  HelpCircle,
+  LogOut,
+  Menu,
+  Monitor,
+  Package,
+  Settings,
+  Shield,
+  Store,
+  UtensilsCrossed,
+  X,
+  Zap,
+  BarChart3,
 } from 'lucide-react'
 
 const NAV = [
-  { href: '/admin', label: 'Kiszolgálás', icon: Zap },
-  { href: '/admin/kds', label: 'Konyha (KDS)', icon: Monitor },
-  { href: '/admin/orders', label: 'Rendelések', icon: ClipboardList },
-  { href: '/admin/menu', label: 'Étlap', icon: UtensilsCrossed },
-  { href: '/admin/reservations', label: 'Foglalások', icon: CalendarClock },
-  { href: '/admin/inventory', label: 'Készlet', icon: Package },
-  { href: '/admin/stats', label: 'Statisztikák', icon: BarChart3 },
-  { href: '/admin/reports', label: 'Riportok', icon: FileDown },
-  { href: '/admin/config', label: 'Konfigurátor', icon: Settings },
-  { href: '/admin/help', label: 'Segítség', icon: HelpCircle },
-]
+  { href: '/admin', label: 'Kiszolgálás', description: 'Élő rendelések és vendégáramlás', icon: Zap },
+  { href: '/admin/kds', label: 'Konyha (KDS)', description: 'Konyhai kijelző és tempó', icon: Monitor },
+  { href: '/admin/orders', label: 'Rendelések', description: 'Teljes rendeléslista', icon: ClipboardList },
+  { href: '/admin/menu', label: 'Étlap', description: 'Termékek, kategóriák, árak', icon: UtensilsCrossed },
+  { href: '/admin/reservations', label: 'Foglalások', description: 'Asztalfoglalások és kapacitás', icon: CalendarClock },
+  { href: '/admin/inventory', label: 'Készlet', description: 'Stock és figyelmeztetések', icon: Package },
+  { href: '/admin/stats', label: 'Statisztikák', description: 'Teljesítmény és trendek', icon: BarChart3 },
+  { href: '/admin/reports', label: 'Riportok', description: 'Exportok és összefoglalók', icon: FileDown },
+  { href: '/admin/config', label: 'Konfigurátor', description: 'Venue, staff, design, szolgáltatások', icon: Settings },
+  { href: '/admin/help', label: 'Segítség', description: 'Támogatás és útmutatók', icon: HelpCircle },
+] as const
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -33,29 +48,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     async function init() {
-      // Step 1: Check auth
-      const { data: { user: u }, error: authError } = await supabase.auth.getUser()
-      if (authError || !u) {
-        console.log('[Admin] No auth session')
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser()
+
+      if (authError || !authUser) {
         setAuthState('no-auth')
         return
       }
 
-      // Step 2: Get profile WITHOUT venue join (this is the critical fix!)
-      // The venue join can fail if there's no FK constraint or RLS blocks it
-      // That failure was causing "no-permission" even for valid admin users
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', u.id)
+        .eq('id', authUser.id)
         .single()
 
       if (profileError) {
-        console.error('[Admin] Profile fetch error:', profileError.message)
-        // Fallback: check user metadata for role
-        const metaRole = u.user_metadata?.role as string
+        const metaRole = authUser.user_metadata?.role as string
         if (metaRole && ['admin', 'staff', 'superadmin'].includes(metaRole)) {
-          setUser({ id: u.id, email: u.email, full_name: u.user_metadata?.full_name, role: metaRole })
+          setUser({ id: authUser.id, email: authUser.email, full_name: authUser.user_metadata?.full_name, role: metaRole })
           setAuthState('ok')
           router.push('/admin/setup')
           return
@@ -69,27 +81,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return
       }
 
-      // Step 3: Check role
       const userRole = profile.role || 'customer'
       if (!['admin', 'staff', 'superadmin'].includes(userRole)) {
         setAuthState('no-permission')
         return
       }
 
-      // Step 4: Auth OK! Set user and try to fetch venue separately
       setUser(profile)
       setAuthState('ok')
 
       if (profile.venue_id) {
-        // Venue fetch is NON-BLOCKING - if it fails, admin panel still works
-        const { data: venueData } = await supabase
-          .from('venues')
-          .select('*')
-          .eq('id', profile.venue_id)
-          .single()
+        const { data: venueData } = await supabase.from('venues').select('*').eq('id', profile.venue_id).single()
         if (venueData) setVenue(venueData)
 
-        // Pending orders count
         const fetchPending = async () => {
           const { count } = await supabase
             .from('orders')
@@ -98,147 +102,203 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             .eq('status', 'pending')
           setPending(count || 0)
         }
+
         fetchPending()
-        supabase.channel('admin-live')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchPending)
-          .subscribe()
+        supabase.channel('admin-live').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchPending).subscribe()
       } else if (!pathname?.includes('/setup')) {
         router.push('/admin/setup')
       }
     }
+
     init()
-  }, [router, pathname])
+  }, [pathname, router])
+
+  useEffect(() => {
+    setSideOpen(false)
+  }, [pathname])
 
   async function logout() {
     await supabase.auth.signOut()
     router.push('/')
   }
 
-  const isKDS = pathname === '/admin/kds'
+  const currentNav = useMemo(() => {
+    return NAV.find((item) => pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href))) || NAV[0]
+  }, [pathname])
+
+  if (pathname === '/admin/kds' && authState === 'ok') {
+    return <>{children}</>
+  }
 
   if (authState === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--admin-bg)' }}>
-        <div className="text-amber-500 text-4xl animate-pulse">🍺</div>
+      <div className="app-shell flex min-h-screen items-center justify-center px-4">
+        <div className="hero-card flex w-full max-w-md flex-col items-center gap-4 p-8 text-center">
+          <div className="inline-flex h-20 w-20 items-center justify-center rounded-[28px] border border-white/10 bg-white/10 text-amber-400">
+            <Store className="h-9 w-9 anim-pulse" />
+          </div>
+          <p className="text-lg font-semibold text-white">Admin felület betöltése...</p>
+          <p className="text-sm text-white/50">Ellenőrizzük a jogosultságokat és a venue kapcsolatot.</p>
+        </div>
       </div>
     )
   }
 
   if (authState === 'no-auth') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: 'var(--admin-bg)' }}>
-        <div className="text-4xl">🔒</div>
-        <h1 className="text-stone-800 text-xl font-bold">Bejelentkezés szükséges</h1>
-        <p className="text-stone-500 text-sm">Az admin panel eléréséhez be kell jelentkezned.</p>
-        <button onClick={() => router.push('/')} className="px-6 py-2.5 bg-amber-500 text-white rounded-xl font-medium">
-          Bejelentkezés →
-        </button>
+      <div className="app-shell flex min-h-screen items-center justify-center px-4">
+        <div className="hero-card w-full max-w-lg p-8 text-center">
+          <div className="section-kicker mx-auto mb-4 w-fit">Admin belépés szükséges</div>
+          <h1 className="text-3xl font-bold text-white">Jelentkezz be, hogy elérd a venue admin felületet.</h1>
+          <p className="mt-3 text-sm text-white/50">A Kapakka admin oldala csak jogosult staff, admin vagy superadmin felhasználóknak érhető el.</p>
+          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+            <button onClick={() => router.push('/')} className="btn-kapakka sm:w-auto sm:px-6">
+              Főoldal megnyitása
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
 
   if (authState === 'no-permission') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: 'var(--admin-bg)' }}>
-        <div className="text-4xl">⛔</div>
-        <h1 className="text-stone-800 text-xl font-bold">Nincs hozzáférésed</h1>
-        <p className="text-stone-500 text-sm text-center max-w-sm">
-          Ez a fiók nem rendelkezik admin jogosultsággal.<br/>Ha vendég vagy, használd a vendég felületet.
-        </p>
-        <div className="flex gap-3">
-          <button onClick={() => router.push('/customer')} className="px-6 py-2.5 bg-amber-500 text-white rounded-xl font-medium">Vendég felület →</button>
-          <button onClick={logout} className="px-6 py-2.5 border border-stone-300 text-stone-600 rounded-xl font-medium">Kijelentkezés</button>
+      <div className="app-shell flex min-h-screen items-center justify-center px-4">
+        <div className="hero-card w-full max-w-xl p-8 text-center">
+          <div className="section-kicker mx-auto mb-4 w-fit">Nincs hozzáférés</div>
+          <h1 className="text-3xl font-bold text-white">Ez a fiók nem rendelkezik admin jogosultsággal.</h1>
+          <p className="mt-3 text-sm text-white/50">Vendégként a customer felületet használhatod, venue oldali hozzáféréshez pedig admin vagy staff szerep szükséges.</p>
+          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+            <button onClick={() => router.push('/customer')} className="btn-kapakka sm:w-auto sm:px-6">
+              Vendég felület
+            </button>
+            <button onClick={logout} className="btn-outline sm:w-auto sm:px-6">
+              Kijelentkezés
+            </button>
+          </div>
         </div>
       </div>
     )
   }
 
-  if (isKDS) return <>{children}</>
-
   const isSuperAdmin = user?.role === 'superadmin'
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--admin-bg)' }}>
-      <aside className={`admin-sidebar transition-transform duration-300 ${sideOpen ? 'translate-x-0 !flex' : ''}`}>
-        <div className="px-4 py-5 border-b border-white/8 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center text-lg">🍺</div>
-            <div>
-              <p className="text-white font-bold text-sm">KAPAKKA</p>
-              <p className="text-white/40 text-xs truncate max-w-[120px]">{venue?.name || 'Admin'}</p>
+    <div className="admin-app">
+      <aside className={`admin-sidebar ${sideOpen ? 'is-open' : ''}`}>
+        <div className="modern-card overflow-hidden p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-amber-500 text-black shadow-xl">
+                <Store className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-white">KAPAKKA Admin</p>
+                <p className="truncate text-xs text-white/40">{venue?.name || 'Venue panel'}</p>
+              </div>
             </div>
+            <button onClick={() => setSideOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 p-2 text-white/50 lg:hidden">
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <button onClick={() => setSideOpen(false)} className="md:hidden text-white/30 hover:text-white">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="mt-4 rounded-[20px] border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-[0.22em] text-white/30">Venue állapot</p>
+            <p className="mt-2 text-lg font-bold text-white">{venue?.name || 'Beállítás szükséges'}</p>
+            <p className="mt-2 text-sm text-white/50">Rendelés, étlap, riportok és designvezérlés egy adminból.</p>
+          </div>
         </div>
 
-        <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
-          {NAV.map(item => {
-            const Icon = item.icon
-            const active = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href))
-            return (
-              <Link key={item.href} href={item.href} onClick={() => setSideOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all relative group ${
-                  active
-                    ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20'
-                    : 'text-white/50 hover:text-white hover:bg-white/8'
-                }`}>
-                <Icon className={`w-4 h-4 ${active ? 'text-white' : 'text-white/40 group-hover:text-white/70'}`} />
-                {item.label}
-                {item.href === '/admin' && pending > 0 && (
-                  <span className="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">{pending}</span>
-                )}
-              </Link>
-            )
-          })}
+        <div className="overflow-y-auto pr-1 scrollbar-hide">
+          <p className="mb-3 px-2 text-xs uppercase tracking-[0.26em] text-white/30">Műveletek</p>
+          <nav className="space-y-1.5">
+            {NAV.map((item) => {
+              const Icon = item.icon
+              const active = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href))
 
-          {isSuperAdmin && (
-            <>
-              <div className="my-3 mx-3 h-px bg-white/8" />
-              <Link href="/siteadmin" onClick={() => setSideOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-indigo-400/70 hover:text-indigo-300 hover:bg-indigo-600/10 transition-all group">
-                <Shield className="w-4 h-4 text-indigo-400/50 group-hover:text-indigo-300" />
-                Site Admin
-                <ChevronRight className="w-3.5 h-3.5 ml-auto text-indigo-400/30" />
-              </Link>
-            </>
-          )}
-        </nav>
+              return (
+                <Link key={item.href} href={item.href} className={`admin-nav-link ${active ? 'active' : ''}`}>
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate">{item.label}</p>
+                    <p className={`truncate text-xs ${active ? 'text-black/65' : 'text-white/30'}`}>{item.description}</p>
+                  </div>
+                  {item.href === '/admin' && pending > 0 && (
+                    <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${active ? 'bg-black/10 text-black' : 'bg-red-500 text-white'}`}>{pending}</span>
+                  )}
+                </Link>
+              )
+            })}
 
-        <div className="px-3 py-4 border-t border-white/8">
-          <div className="flex items-center gap-3 px-2 py-2 mb-2">
-            <div className="w-8 h-8 bg-amber-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+            {isSuperAdmin && (
+              <Link href="/siteadmin" className="admin-nav-link mt-4 border border-indigo-500/20 bg-indigo-500/10 text-indigo-200 hover:bg-indigo-500/15">
+                <Shield className="h-4 w-4 flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate">Site Admin</p>
+                  <p className="truncate text-xs text-indigo-200/60">Rendszerszintű felügyelet</p>
+                </div>
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            )}
+          </nav>
+        </div>
+
+        <div className="modern-card p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white/10 text-sm font-black text-white shadow-xl">
               {user?.full_name?.[0] || 'A'}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-xs font-medium truncate">{user?.full_name}</p>
-              <p className="text-white/30 text-xs capitalize">{user?.role === 'superadmin' ? '🛡️ superadmin' : user?.role}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-white">{user?.full_name || user?.email}</p>
+              <p className="truncate text-xs capitalize text-white/40">{user?.role === 'superadmin' ? 'superadmin' : user?.role}</p>
             </div>
           </div>
-          <button onClick={logout} className="w-full flex items-center gap-2 px-3 py-2 text-white/30 hover:text-red-400 rounded-lg text-xs transition-colors">
-            <LogOut className="w-3.5 h-3.5" /> Kijelentkezés
-          </button>
+          <div className="mt-4 grid gap-2">
+            {venue?.id && (
+              <button onClick={() => router.push(`/customer/pub/${venue.id}`)} className="btn-outline justify-between px-4 py-3">
+                Vendég nézet megnyitása
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            )}
+            <button onClick={logout} className="btn-outline justify-between border-red-500/20 px-4 py-3 text-red-300 hover:bg-red-500/10">
+              Kijelentkezés
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </aside>
 
-      {sideOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setSideOpen(false)} />}
+      <div className="admin-main">
+        <header className="admin-topbar">
+          <div className="admin-page flex items-center justify-between gap-4 py-4">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setSideOpen(true)} className="inline-flex h-11 w-11 items-center justify-center rounded-[18px] border border-black/5 bg-white/70 text-[color:var(--admin-heading)] shadow-sm lg:hidden">
+                <Menu className="h-5 w-5" />
+              </button>
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-[color:var(--admin-subtle)]">Kapakka venue admin</p>
+                <h1 className="text-2xl font-bold text-[color:var(--admin-heading)]">{currentNav.label}</h1>
+                <p className="mt-1 text-sm text-[color:var(--admin-muted)]">{currentNav.description}</p>
+              </div>
+            </div>
 
-      <div className="admin-main flex-1 overflow-y-auto">
-        <header className="bg-white border-b border-stone-200 px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
-          <button onClick={() => setSideOpen(true)} className="md:hidden w-9 h-9 bg-stone-100 rounded-lg flex items-center justify-center">
-            <Menu className="w-5 h-5 text-stone-600" />
-          </button>
-          <span className="font-bold text-stone-800 text-sm flex-1">{venue?.name || 'Kapakka Admin'}</span>
-          {pending > 0 && (
-            <Link href="/admin" className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-1.5 rounded-lg text-xs font-bold animate-pulse">
-              <Bell className="w-3.5 h-3.5" /> {pending} új rendelés
-            </Link>
-          )}
-          <div className="w-2 h-2 bg-green-500 rounded-full" title="Online" />
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-black/5 bg-white/70 px-3 py-2 text-sm font-semibold text-[color:var(--admin-heading)]">
+                <Bell className="h-4 w-4 text-[color:var(--accent)]" />
+                {pending} függő rendelés
+              </div>
+              {venue?.name && (
+                <div className="hidden rounded-full border border-black/5 bg-white/70 px-3 py-2 text-sm text-[color:var(--admin-muted)] sm:inline-flex">
+                  {venue.name}
+                </div>
+              )}
+            </div>
+          </div>
         </header>
-        <main>{children}</main>
+
+        <main className="admin-page">{children}</main>
       </div>
+
+      {sideOpen && <button aria-label="Sidebar bezárása" className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSideOpen(false)} />}
     </div>
   )
 }
