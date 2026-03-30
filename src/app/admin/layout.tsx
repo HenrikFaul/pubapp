@@ -6,15 +6,18 @@ import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import {
   Zap, ClipboardList, UtensilsCrossed, Package, BarChart3, Settings, HelpCircle,
-  Menu, Bell, LogOut, Shield, ChevronRight, X
+  Menu, Bell, LogOut, Shield, ChevronRight, X, Monitor, CalendarClock, FileDown
 } from 'lucide-react'
 
 const NAV = [
   { href: '/admin', label: 'Kiszolgálás', icon: Zap },
+  { href: '/admin/kds', label: 'Konyha (KDS)', icon: Monitor },
   { href: '/admin/orders', label: 'Rendelések', icon: ClipboardList },
   { href: '/admin/menu', label: 'Étlap', icon: UtensilsCrossed },
+  { href: '/admin/reservations', label: 'Foglalások', icon: CalendarClock },
   { href: '/admin/inventory', label: 'Készlet', icon: Package },
   { href: '/admin/stats', label: 'Statisztikák', icon: BarChart3 },
+  { href: '/admin/reports', label: 'Riportok', icon: FileDown },
   { href: '/admin/config', label: 'Konfigurátor', icon: Settings },
   { href: '/admin/help', label: 'Segítség', icon: HelpCircle },
 ]
@@ -31,10 +34,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     async function init() {
       const { data: { user: u }, error: authError } = await supabase.auth.getUser()
-      if (authError || !u) {
-        setAuthState('no-auth')
-        return
-      }
+      if (authError || !u) { setAuthState('no-auth'); return }
 
       const { data: p, error: profileError } = await supabase
         .from('profiles')
@@ -42,16 +42,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         .eq('id', u.id)
         .single()
 
-      if (profileError || !p) {
-        console.error('Profile fetch failed:', profileError)
-        setAuthState('no-permission')
-        return
-      }
-
-      if (!['admin', 'staff', 'superadmin'].includes(p.role)) {
-        setAuthState('no-permission')
-        return
-      }
+      if (profileError || !p) { setAuthState('no-permission'); return }
+      if (!['admin', 'staff', 'superadmin'].includes(p.role)) { setAuthState('no-permission'); return }
 
       setUser(p)
       setVenue(p.venue)
@@ -85,7 +77,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.push('/')
   }
 
-  // ─── AUTH STATES ────────────────────────────────────────────────
+  // KDS page uses its own full-screen layout
+  const isKDS = pathname === '/admin/kds'
 
   if (authState === 'loading') {
     return (
@@ -101,10 +94,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="text-4xl">🔒</div>
         <h1 className="text-stone-800 text-xl font-bold">Bejelentkezés szükséges</h1>
         <p className="text-stone-500 text-sm">Az admin panel eléréséhez be kell jelentkezned.</p>
-        <button
-          onClick={() => router.push('/')}
-          className="px-6 py-2.5 bg-amber-500 text-white rounded-xl font-medium"
-        >
+        <button onClick={() => router.push('/')} className="px-6 py-2.5 bg-amber-500 text-white rounded-xl font-medium">
           Bejelentkezés →
         </button>
       </div>
@@ -117,28 +107,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="text-4xl">⛔</div>
         <h1 className="text-stone-800 text-xl font-bold">Nincs hozzáférésed</h1>
         <p className="text-stone-500 text-sm text-center max-w-sm">
-          Ez a fiók nem rendelkezik admin jogosultsággal.<br/>
-          Ha vendég vagy, használd a vendég felületet.
+          Ez a fiók nem rendelkezik admin jogosultsággal.<br/>Ha vendég vagy, használd a vendég felületet.
         </p>
         <div className="flex gap-3">
-          <button
-            onClick={() => router.push('/customer')}
-            className="px-6 py-2.5 bg-amber-500 text-white rounded-xl font-medium"
-          >
-            Vendég felület →
-          </button>
-          <button
-            onClick={logout}
-            className="px-6 py-2.5 border border-stone-300 text-stone-600 rounded-xl font-medium"
-          >
-            Kijelentkezés
-          </button>
+          <button onClick={() => router.push('/customer')} className="px-6 py-2.5 bg-amber-500 text-white rounded-xl font-medium">Vendég felület →</button>
+          <button onClick={logout} className="px-6 py-2.5 border border-stone-300 text-stone-600 rounded-xl font-medium">Kijelentkezés</button>
         </div>
       </div>
     )
   }
 
-  // ─── ADMIN LAYOUT ──────────────────────────────────────────────
+  // KDS gets full-screen, no sidebar
+  if (isKDS) {
+    return <>{children}</>
+  }
 
   const isSuperAdmin = user?.role === 'superadmin'
 
@@ -146,7 +128,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="flex h-screen overflow-hidden" style={{ background: '#f5f0eb' }}>
       {/* Sidebar */}
       <aside className={`admin-sidebar transition-transform duration-300 ${sideOpen ? 'translate-x-0 !flex' : ''}`}>
-        {/* Logo */}
         <div className="px-4 py-5 border-b border-white/8 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center text-lg">🍺</div>
@@ -160,34 +141,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 py-4 px-2 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
           {NAV.map(item => {
             const Icon = item.icon
             const active = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href))
             return (
               <Link key={item.href} href={item.href} onClick={() => setSideOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative group ${
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all relative group ${
                   active
                     ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20'
                     : 'text-white/50 hover:text-white hover:bg-white/8'
                 }`}>
-                <Icon className={`w-[18px] h-[18px] ${active ? 'text-white' : 'text-white/40 group-hover:text-white/70'}`} />
+                <Icon className={`w-4 h-4 ${active ? 'text-white' : 'text-white/40 group-hover:text-white/70'}`} />
                 {item.label}
                 {item.href === '/admin' && pending > 0 && (
-                  <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[20px] text-center animate-pulse">{pending}</span>
+                  <span className="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">{pending}</span>
                 )}
               </Link>
             )
           })}
 
-          {/* Siteadmin link for superadmins */}
           {isSuperAdmin && (
             <>
               <div className="my-3 mx-3 h-px bg-white/8" />
               <Link href="/siteadmin" onClick={() => setSideOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-indigo-400/70 hover:text-indigo-300 hover:bg-indigo-600/10 transition-all group">
-                <Shield className="w-[18px] h-[18px] text-indigo-400/50 group-hover:text-indigo-300" />
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-indigo-400/70 hover:text-indigo-300 hover:bg-indigo-600/10 transition-all group">
+                <Shield className="w-4 h-4 text-indigo-400/50 group-hover:text-indigo-300" />
                 Site Admin
                 <ChevronRight className="w-3.5 h-3.5 ml-auto text-indigo-400/30" />
               </Link>
@@ -195,7 +174,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           )}
         </nav>
 
-        {/* User */}
         <div className="px-3 py-4 border-t border-white/8">
           <div className="flex items-center gap-3 px-2 py-2 mb-2">
             <div className="w-8 h-8 bg-amber-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
@@ -212,12 +190,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* Overlay */}
       {sideOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setSideOpen(false)} />}
 
-      {/* Main */}
       <div className="admin-main flex-1 overflow-y-auto">
-        {/* Top bar */}
         <header className="bg-white border-b border-stone-200 px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
           <button onClick={() => setSideOpen(true)} className="md:hidden w-9 h-9 bg-stone-100 rounded-lg flex items-center justify-center">
             <Menu className="w-5 h-5 text-stone-600" />
