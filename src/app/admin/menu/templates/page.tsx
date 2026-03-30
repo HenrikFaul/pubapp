@@ -17,6 +17,7 @@ interface TemplateItem {
   item_price: number
   item_tags: string[]
   item_allergens: string[]
+  item_sort: number
 }
 
 interface Template {
