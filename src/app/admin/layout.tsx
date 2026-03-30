@@ -33,33 +33,68 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     async function init() {
+      // Step 1: Check auth
       const { data: { user: u }, error: authError } = await supabase.auth.getUser()
-      if (authError || !u) { setAuthState('no-auth'); return }
-
-      const { data: p, error: profileError } = await supabase
-        .from('profiles')
-        .select('*, venue:venues(*)')
-        .eq('id', u.id)
-        .single()
-
-      if (profileError || !p) { setAuthState('no-permission'); return }
-      if (!['admin', 'staff', 'superadmin'].includes(p.role)) { setAuthState('no-permission'); return }
-
-      setUser(p)
-      setVenue(p.venue)
-      setAuthState('ok')
-
-      if (!p.venue_id && !pathname?.includes('/setup')) {
-        router.push('/admin/setup')
+      if (authError || !u) {
+        console.log('[Admin] No auth session')
+        setAuthState('no-auth')
         return
       }
 
-      if (p.venue_id) {
+      // Step 2: Get profile WITHOUT venue join (this is the critical fix!)
+      // The venue join can fail if there's no FK constraint or RLS blocks it
+      // That failure was causing "no-permission" even for valid admin users
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', u.id)
+        .single()
+
+      if (profileError) {
+        console.error('[Admin] Profile fetch error:', profileError.message)
+        // Fallback: check user metadata for role
+        const metaRole = u.user_metadata?.role as string
+        if (metaRole && ['admin', 'staff', 'superadmin'].includes(metaRole)) {
+          setUser({ id: u.id, email: u.email, full_name: u.user_metadata?.full_name, role: metaRole })
+          setAuthState('ok')
+          router.push('/admin/setup')
+          return
+        }
+        setAuthState('no-permission')
+        return
+      }
+
+      if (!profile) {
+        setAuthState('no-permission')
+        return
+      }
+
+      // Step 3: Check role
+      const userRole = profile.role || 'customer'
+      if (!['admin', 'staff', 'superadmin'].includes(userRole)) {
+        setAuthState('no-permission')
+        return
+      }
+
+      // Step 4: Auth OK! Set user and try to fetch venue separately
+      setUser(profile)
+      setAuthState('ok')
+
+      if (profile.venue_id) {
+        // Venue fetch is NON-BLOCKING - if it fails, admin panel still works
+        const { data: venueData } = await supabase
+          .from('venues')
+          .select('*')
+          .eq('id', profile.venue_id)
+          .single()
+        if (venueData) setVenue(venueData)
+
+        // Pending orders count
         const fetchPending = async () => {
           const { count } = await supabase
             .from('orders')
             .select('*', { count: 'exact', head: true })
-            .eq('venue_id', p.venue_id)
+            .eq('venue_id', profile.venue_id)
             .eq('status', 'pending')
           setPending(count || 0)
         }
@@ -67,6 +102,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         supabase.channel('admin-live')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchPending)
           .subscribe()
+      } else if (!pathname?.includes('/setup')) {
+        router.push('/admin/setup')
       }
     }
     init()
@@ -77,7 +114,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.push('/')
   }
 
-  // KDS page uses its own full-screen layout
   const isKDS = pathname === '/admin/kds'
 
   if (authState === 'loading') {
@@ -117,16 +153,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     )
   }
 
-  // KDS gets full-screen, no sidebar
-  if (isKDS) {
-    return <>{children}</>
-  }
+  if (isKDS) return <>{children}</>
 
   const isSuperAdmin = user?.role === 'superadmin'
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: '#f5f0eb' }}>
-      {/* Sidebar */}
       <aside className={`admin-sidebar transition-transform duration-300 ${sideOpen ? 'translate-x-0 !flex' : ''}`}>
         <div className="px-4 py-5 border-b border-white/8 flex items-center justify-between">
           <div className="flex items-center gap-3">
