@@ -218,3 +218,55 @@ html, body {
 .scrollbar-hide { -ms-overflow-style:none; scrollbar-width:none; }
 
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+
+/* ================================================================
+   KAPAKKA v1.1.0 — Admin additional styles
+   Add these to the END of your existing globals.css file
+   ================================================================ */
+
+/* Admin input style (used in config, menu, inventory pages) */
+.input {
+  width: 100%;
+  padding: 10px 14px;
+  background: white;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  color: #1C0A00;
+  font-size: 14px;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+.input:focus {
+  border-color: #F59E0B;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+/* Status badge for admin orders table */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Slide up animation for modals */
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Mobile sidebar show override */
+@media (max-width: 768px) {
+  .admin-sidebar.translate-x-0 {
+    display: flex !important;
+    transform: translateX(0) !important;
+    z-index: 40;
+  }
+}
+
