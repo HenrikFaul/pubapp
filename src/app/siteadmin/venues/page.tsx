@@ -15,7 +15,7 @@ export default function VenuesPage() {
   useEffect(() => {
     async function fetch() {
       const { data: v } = await supabase.from('venues')
-        .select('*, owner:profiles!venues_owner_id_fkey(full_name, email)')
+        .select('*, owner:profiles(full_name, email)')
         .order('created_at', { ascending: false })
       setVenues(v || [])
 
