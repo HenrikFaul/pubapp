@@ -3,91 +3,80 @@
 import { useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
-import { DEFAULT_THEME_KEY, isKapakkaThemeKey, STORAGE_THEME_KEY } from '@/lib/themes'
+import { DEFAULT_THEME_KEY, isKapakkaThemeKey, type KapakkaThemeKey } from '@/lib/themes'
 
-function applyTheme(themeKey: string) {
+const THEME_EVENT = 'kapakka-theme-change'
+const STORAGE_KEY = 'kapakka:theme'
+
+function applyTheme(themeKey: KapakkaThemeKey) {
   if (typeof document === 'undefined') return
-  const safeTheme = isKapakkaThemeKey(themeKey) ? themeKey : DEFAULT_THEME_KEY
-  document.documentElement.dataset.theme = safeTheme
-  document.body.dataset.theme = safeTheme
-  try {
-    localStorage.setItem(STORAGE_THEME_KEY, safeTheme)
-  } catch {}
+  document.documentElement.dataset.theme = themeKey
+  if (document.body) {
+    document.body.dataset.theme = themeKey
+  }
 }
 
-export function broadcastThemeChange(themeKey: string) {
-  const safeTheme = isKapakkaThemeKey(themeKey) ? themeKey : DEFAULT_THEME_KEY
-  applyTheme(safeTheme)
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('kapakka-theme-change', { detail: safeTheme }))
-  }
+export function broadcastThemeChange(themeKey: KapakkaThemeKey) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(STORAGE_KEY, themeKey)
+  applyTheme(themeKey)
+  window.dispatchEvent(new CustomEvent(THEME_EVENT, { detail: themeKey }))
 }
 
 export default function AppShellProviders() {
   useEffect(() => {
-    const localTheme = (() => {
-      try {
-        return localStorage.getItem(STORAGE_THEME_KEY)
-      } catch {
-        return null
+    let isMounted = true
+
+    async function syncTheme() {
+      const localValue = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
+      if (isKapakkaThemeKey(localValue)) {
+        applyTheme(localValue)
+      } else {
+        applyTheme(DEFAULT_THEME_KEY)
       }
-    })()
 
-    applyTheme(localTheme || DEFAULT_THEME_KEY)
+      const { data, error } = await supabase.from('app_settings').select('theme_key').eq('id', 'global').maybeSingle()
+      if (!isMounted || error) return
 
-    let cancelled = false
-
-    async function syncThemeFromBackend() {
-      const { data } = await supabase
-        .from('app_settings')
-        .select('theme_key')
-        .eq('id', 'global')
-        .maybeSingle()
-
-      if (cancelled) return
-      if (data?.theme_key && isKapakkaThemeKey(data.theme_key)) {
-        applyTheme(data.theme_key)
+      const remoteTheme = data?.theme_key
+      if (isKapakkaThemeKey(remoteTheme)) {
+        localStorage.setItem(STORAGE_KEY, remoteTheme)
+        applyTheme(remoteTheme)
       }
     }
 
-    syncThemeFromBackend().catch(() => {
-      // Fallback is localStorage/default theme.
-    })
+    syncTheme()
 
-    const onCustomThemeChange = (event: Event) => {
-      const custom = event as CustomEvent<string>
-      applyTheme(custom.detail)
-    }
-
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === STORAGE_THEME_KEY && event.newValue) {
-        applyTheme(event.newValue)
+    const handleThemeChange = (event: Event) => {
+      const customEvent = event as CustomEvent<KapakkaThemeKey>
+      const detail = customEvent.detail
+      if (isKapakkaThemeKey(detail)) {
+        applyTheme(detail)
       }
     }
 
-    window.addEventListener('kapakka-theme-change', onCustomThemeChange as EventListener)
-    window.addEventListener('storage', onStorage)
+    window.addEventListener(THEME_EVENT, handleThemeChange)
 
     return () => {
-      cancelled = true
-      window.removeEventListener('kapakka-theme-change', onCustomThemeChange as EventListener)
-      window.removeEventListener('storage', onStorage)
+      isMounted = false
+      window.removeEventListener(THEME_EVENT, handleThemeChange)
     }
   }, [])
 
   return (
-    <>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          style: {
-            borderRadius: '14px',
-            background: 'var(--admin-surface)',
-            color: 'var(--admin-text)',
-            border: '1px solid var(--admin-border)',
-          },
-        }}
-      />
-    </>
+    <Toaster
+      position="top-center"
+      toastOptions={{
+        duration: 3200,
+        style: {
+          borderRadius: '18px',
+          background: 'rgba(18, 24, 38, 0.92)',
+          color: '#f8fbff',
+          border: '1px solid rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(14px)',
+          boxShadow: '0 16px 42px rgba(0,0,0,0.28)',
+        },
+      }}
+    />
   )
 }

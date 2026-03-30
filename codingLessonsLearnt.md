@@ -155,6 +155,30 @@
 
 ---
 
+### [HIBA-015] Patch-only csomagból kimaradt új supporting fájlak
+- **Dátum**: 2026-03-30 (v1.2.1)
+- **Fájl**: patch csomag / `src/app/layout.tsx`, `src/app/admin/config/page.tsx`
+- **Hibaüzenet**: Build/import hiba, mert az újonnan hivatkozott `@/components/AppShellProviders` és `@/lib/themes` fájlok nem voltak benne a patch-only zipben.
+- **Gyökérok**: A patch-only csomagolásnál nem csak a módosított meglévő fájlakat, hanem az újonnan BEVEZETETT supporting fájlokat is csomagolni kell. Ezek kimaradtak.
+- **Javítás**: A patch-only csomag listáját úgy kell összeállítani, hogy minden új import célfájlja bekerüljön.
+- **Megelőzés**: Patch készítés előtt **MINDIG** futtasd le ezt a checklistet: minden `import '@/...'` útvonalhoz létezik fájl ÉS a zipben is benne van, ha újonnan lett bevezetve.
+
+### [HIBA-016] Design patch buildbiztonság — csak syntax-ellenőrzött fájl csomagolható
+- **Dátum**: 2026-03-30 (v1.3.0)
+- **Fájl**: összes új / módosított `.tsx` fájl
+- **Hibaüzenet**: Potenciális — reszponzív redesign közben könnyű szintaktikai hibát vagy félbehagyott importot hagyni.
+- **Gyökérok**: Nagy redesignnál sok fájl változik egyszerre, ezért megnő a hibázás esélye.
+- **Javítás**: A patch csomagolás előtt a módosított TS/TSX fájlakat legalább TypeScript parser szinten ellenőrizni kell.
+- **Megelőzés**: **MINDIG** legyen build-safety lépés: ha teljes `npm build` nem futtatható, akkor minimum parser/syntax ellenőrzést kell végezni minden módosított TS/TSX fájlra.
+
+### [HIBA-017] Új adatbázis tábla / migráció még nincs fent — UI ne omoljon össze
+- **Dátum**: 2026-03-30 (v1.3.0)
+- **Fájl**: `src/app/customer/page.tsx`, `src/app/admin/config/page.tsx`, új social/place feature lekérdezések
+- **Hibaüzenet**: Potenciális — ha a `place_favorites`, `friendships`, `place_lists`, `app_settings` vagy `reservations` migráció még nincs lefuttatva, a featurelekérdezések hibát dobhatnak.
+- **Gyökérok**: A frontend hamarabb kerülhet fel, mint az új migráció.
+- **Javítás**: A lekérdezések `maybeSingle()` / `|| []` fallback mintával készültek, és a feature nem auth-kritikus ágon fut.
+- **Megelőzés**: **SOHA** ne legyen új opcionális feature táblára épített lekérdezés auth-kritikus vagy page-blocking. Új feature tábla = null-safe, fallbackes, nem-blokkoló betöltés.
+
 ## 📋 ELLENŐRZŐ LISTA (Minden commit előtt)
 
 - [ ] Auth-kritikus lekérdezésben NINCS FK JOIN? (profiles select = egyszerű `select('*')`)
@@ -166,10 +190,12 @@
 - [ ] Fájlnevek Next.js konvenciónak megfelelnek (`page.tsx`, `layout.tsx`)?
 - [ ] Egyedi CSS class-ok definiálva vannak a globals.css-ben?
 - [ ] Lucide ikonok a hivatalos listáról importálva?
+- [ ] Minden új import célfájlja benne van a patch-only csomagban?
+- [ ] Parser/syntax ellenőrzés lefutott a módosított TS/TSX fájlakon?
 - [ ] RLS policy-kban nincs cross-table JOIN más RLS-védett táblára?
 - [ ] Új SQL oszlopok esetén a kód `(: any)` castot használ?
 
 ---
 
-*Utoljára frissítve: 2026-03-30 — v1.2.0*
+*Utoljára frissítve: 2026-03-30 — v1.3.0*
 *Ez egy FOLYAMATOSAN BŐVÜLŐ fájl. Új hibákat MINDIG appendelj, SOHA ne törölj!*

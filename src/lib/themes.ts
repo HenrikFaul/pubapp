@@ -1,71 +1,65 @@
-export type KapakkaThemeKey = 'taproom-classic' | 'neon-arcade' | 'botanical-brew' | 'midnight-reserve'
+export type KapakkaThemeKey =
+  | 'taproom-classic'
+  | 'neon-arcade'
+  | 'botanical-brew'
+  | 'midnight-reserve'
+  | 'cosmic-pulse'
 
-export interface KapakkaThemeOption {
+export interface KapakkaThemeDefinition {
   key: KapakkaThemeKey
   name: string
-  shortDescription: string
-  venueFit: string
-  accent: string
-  accentStrong: string
-  accentText: string
-  customerBackground: string
-  adminSurface: string
+  tagline: string
+  customerPreview: string
+  adminPreview: string
 }
 
-export const DEFAULT_THEME_KEY: KapakkaThemeKey = 'taproom-classic'
-export const STORAGE_THEME_KEY = 'kapakka:theme'
+export const DEFAULT_THEME_KEY: KapakkaThemeKey = 'cosmic-pulse'
 
-export const KAPAKKA_THEMES: KapakkaThemeOption[] = [
+export const KAPAKKA_THEMES: KapakkaThemeDefinition[] = [
+  {
+    key: 'cosmic-pulse',
+    name: 'Cosmic Pulse',
+    tagline: 'Ultrafiatal, neon nightlife, erősen mobil-first élmény.',
+    customerPreview: 'Neon feed · gyors rendelés · társasági fókusz',
+    adminPreview: 'Live ops · dark dashboard · premium control',
+  },
   {
     key: 'taproom-classic',
     name: 'Taproom Classic',
-    shortDescription: 'Meleg pub / söröző hangulat, legerősebb általános alap skin.',
-    venueFit: 'klasszikus söröző, romkocsma, pub food',
-    accent: '#F2A93B',
-    accentStrong: '#D98B18',
-    accentText: '#1B1207',
-    customerBackground: 'linear-gradient(135deg, #201109 0%, #3A1C0B 48%, #170C07 100%)',
-    adminSurface: '#FBF5EE',
+    tagline: 'Modern craft beer hangulat letisztult navigációval.',
+    customerPreview: 'Warm pub tones · könnyű étlapolvasás',
+    adminPreview: 'Tiszta operációs nézet · gyors kezelhetőség',
   },
   {
     key: 'neon-arcade',
     name: 'Neon Arcade',
-    shortDescription: 'Játékos, fiatalos, erős közösségi és gamification fókusz.',
-    venueFit: 'játékbár, event venue, fiatal közönség',
-    accent: '#8B5CF6',
-    accentStrong: '#6D3EF0',
-    accentText: '#F8F7FF',
-    customerBackground: 'linear-gradient(135deg, #0A0F1F 0%, #151338 44%, #08121F 100%)',
-    adminSurface: '#121522',
+    tagline: 'Játékos, energikus, fiatal társaságokra optimalizált.',
+    customerPreview: 'Arcade glow · játékok · közösségi CTA-k',
+    adminPreview: 'Kontrasztos, teches, gyors monitorozás',
   },
   {
     key: 'botanical-brew',
     name: 'Botanical Brew',
-    shortDescription: 'Friss, természetes, gastro és teraszos helyekhez passzol.',
-    venueFit: 'kerthelyiség, brunch bár, gastro pub',
-    accent: '#5E9F57',
-    accentStrong: '#447C41',
-    accentText: '#F5FFF3',
-    customerBackground: 'linear-gradient(135deg, #0F2218 0%, #1C3527 48%, #0D1A12 100%)',
-    adminSurface: '#F4F3EA',
+    tagline: 'Friss, brunchos, gastro-pub karakter.',
+    customerPreview: 'Organikus tónusok · food-forward élmény',
+    adminPreview: 'Világos üzemeltetés · premium hospitality',
   },
   {
     key: 'midnight-reserve',
     name: 'Midnight Reserve',
-    shortDescription: 'Fekete-arany prémium esti bár hangulat.',
-    venueFit: 'cocktail bár, lounge, upscale esti venue',
-    accent: '#D4AF4E',
-    accentStrong: '#B38B26',
-    accentText: '#17120A',
-    customerBackground: 'linear-gradient(135deg, #050608 0%, #10141D 52%, #050608 100%)',
-    adminSurface: '#F1ECE3',
+    tagline: 'Elegáns black-gold esti bár arculat.',
+    customerPreview: 'Lounge hangulat · upscale vizuál',
+    adminPreview: 'Exkluzív esti venue irányítás',
   },
 ]
 
 export function isKapakkaThemeKey(value: string | null | undefined): value is KapakkaThemeKey {
-  return KAPAKKA_THEMES.some(theme => theme.key === value)
+  return KAPAKKA_THEMES.some((theme) => theme.key === value)
 }
 
-export function getKapakkaTheme(key: string | null | undefined): KapakkaThemeOption {
-  return KAPAKKA_THEMES.find(theme => theme.key === key) || KAPAKKA_THEMES[0]
+export function getKapakkaTheme(themeKey: string | null | undefined): KapakkaThemeDefinition {
+  if (isKapakkaThemeKey(themeKey || '')) {
+    return KAPAKKA_THEMES.find((theme) => theme.key === themeKey) || KAPAKKA_THEMES[0]
+  }
+  return KAPAKKA_THEMES.find((theme) => theme.key === DEFAULT_THEME_KEY) || KAPAKKA_THEMES[0]
 }

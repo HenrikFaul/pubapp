@@ -1,21 +1,45 @@
 export function formatPrice(n: number) {
   return new Intl.NumberFormat('hu-HU', {
-    style: 'currency', currency: 'HUF', minimumFractionDigits: 0,
+    style: 'currency',
+    currency: 'HUF',
+    minimumFractionDigits: 0,
   }).format(n)
 }
 
 export function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'most'
-  if (m < 60) return `${m} perce`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h} órája`
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return 'most'
+  if (minutes < 60) return `${minutes} perce`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} órája`
   return new Date(dateStr).toLocaleDateString('hu-HU')
 }
 
 export function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('hu-HU')
+}
+
+export function formatDateTime(dateStr: string) {
+  return new Date(dateStr).toLocaleString('hu-HU', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+export function formatDistanceKm(distance?: number) {
+  if (typeof distance !== 'number' || !Number.isFinite(distance)) return '—'
+  if (distance < 1) return `${Math.round(distance * 1000)} m`
+  return `${distance.toFixed(1)} km`
+}
+
+export async function copyText(text: string) {
+  if (typeof navigator === 'undefined' || !navigator.clipboard) return false
+  await navigator.clipboard.writeText(text)
+  return true
 }
 
 export const STATUS_LABELS: Record<string, string> = {
@@ -63,22 +87,24 @@ export const DAY_NAMES: Record<string, string> = {
 export function isOpenNow(
   hours: Record<string, { open: string; close: string; closed: boolean }>
 ): boolean {
-  const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
   const today = days[new Date().getDay()]
-  const h = hours?.[today]
-  if (!h || h.closed) return false
+  const currentDay = hours?.[today]
+  if (!currentDay || currentDay.closed) return false
   const now = new Date().getHours() * 60 + new Date().getMinutes()
-  const [oh, om] = h.open.split(':').map(Number)
-  const [ch, cm] = h.close.split(':').map(Number)
-  const open = oh * 60 + om
-  const close = ch * 60 + cm
-  return close < open ? (now >= open || now <= close) : (now >= open && now <= close)
+  const [openHour, openMinute] = currentDay.open.split(':').map(Number)
+  const [closeHour, closeMinute] = currentDay.close.split(':').map(Number)
+  const open = openHour * 60 + openMinute
+  const close = closeHour * 60 + closeMinute
+  return close < open ? now >= open || now <= close : now >= open && now <= close
 }
 
 export function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371
   const dLat = ((lat2 - lat1) * Math.PI) / 180
   const dLon = ((lon2 - lon1) * Math.PI) / 180
-  const a = Math.sin(dLat/2)**2 + Math.cos((lat1*Math.PI)/180)*Math.cos((lat2*Math.PI)/180)*Math.sin(dLon/2)**2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }

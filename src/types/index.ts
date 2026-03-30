@@ -28,6 +28,7 @@ export interface Venue {
   longitude?: number
   phone?: string
   email?: string
+  website?: string
   logo_url?: string
   cover_url?: string
   opening_hours: Record<string, { open: string; close: string; closed: boolean }>
@@ -35,6 +36,13 @@ export interface Venue {
   has_bar_service: boolean
   has_kitchen: boolean
   has_reservations: boolean
+  reservation_requires_approval?: boolean
+  reservation_slot_minutes?: number
+  reservation_max_party_size?: number
+  auto_notify_processing?: boolean
+  auto_notify_ready?: boolean
+  allow_external_place_shares?: boolean
+  allow_friend_lists?: boolean
   accepts_card: boolean
   accepts_cash: boolean
   accepts_app_payment: boolean
@@ -198,8 +206,53 @@ export interface VenueStats {
   total_guests: number
 }
 
-export interface AppSetting {
+export interface PlaceFavorite {
   id: string
-  theme_key: string
-  updated_at: string
+  user_id: string
+  venue_id?: string
+  external_place_id?: string
+  provider?: string
+  name: string
+  category?: string
+  address?: string
+  image_url?: string
+  rating?: number
+  metadata?: Record<string, unknown>
+  created_at: string
+}
+
+export interface Friendship {
+  id: string
+  requester_id: string
+  addressee_id: string
+  status: 'pending' | 'accepted' | 'declined'
+  created_at: string
+  requester?: Profile
+  addressee?: Profile
+}
+
+export interface SharedPlaceList {
+  id: string
+  owner_id: string
+  title: string
+  description?: string
+  is_public: boolean
+  created_at: string
+}
+
+export interface Reservation {
+  id: string
+  venue_id: string
+  customer_id?: string
+  table_id?: string
+  customer_name: string
+  customer_email?: string
+  customer_phone?: string
+  party_size: number
+  reservation_date: string
+  reservation_time: string
+  duration_minutes: number
+  status: 'pending' | 'confirmed' | 'seated' | 'completed' | 'cancelled' | 'no_show'
+  notes?: string
+  created_at: string
 }
