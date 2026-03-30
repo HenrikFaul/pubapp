@@ -1,4 +1,12 @@
 // deno-lint-ignore-file no-explicit-any
+
+declare const Deno: {
+  env: {
+    get: (name: string) => string | undefined
+  }
+  serve: (handler: (request: Request) => Response | Promise<Response>) => void
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
