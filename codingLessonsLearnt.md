@@ -1,0 +1,154 @@
+# codingLessonsLearnt.md — Kapakka PubApp
+
+## ⚠️ UTASÍTÁSOK (MINDIG OLVASD EL ELŐSZÖR!)
+
+**KÖTELEZŐ MUNKAFOLYAMAT — Minden fejlesztés előtt:**
+1. Nyisd meg és olvasd végig ezt a fájlt MIELŐTT bármit kódolnál
+2. Ellenőrizd, hogy az új kódod nem tartalmaz-e az itt felsorolt hibamintákat
+3. Ha új hibát találsz/javítasz, AZONNAL appendeld a megfelelő kategóriába
+4. SOHA ne töröld a meglévő tartalmat — csak hozzáadni szabad
+5. SOHA ne hozz létre új fájlt ezzel a céllal — mindig ebbe a fájlba írd
+
+**Struktúra minden hiba bejegyzésnél:**
+```
+### [HIBA-XXX] Rövid cím
+- **Dátum**: Mikor fordult elő
+- **Fájl**: Melyik fájlban volt
+- **Hibaüzenet**: Pontos TypeScript/build error
+- **Gyökérok**: Miért történt
+- **Javítás**: Hogyan lett megoldva
+- **Megelőzés**: Hogyan kerüld el a jövőben
+```
+
+---
+
+## 🔴 KATEGÓRIA 1: TypeScript típus hibák
+
+### [HIBA-001] Hiányzó property az interface-ből
+- **Dátum**: 2026-03-30 (v1.1.0)
+- **Fájl**: `src/app/admin/menu/templates/page.tsx:157`
+- **Hibaüzenet**: `Type error: Property 'item_sort' does not exist on type 'TemplateItem'.`
+- **Gyökérok**: A `TemplateItem` interface-ben nem volt definiálva az `item_sort` property, miközben a kód hivatkozott rá (`sort_order: item.item_sort`). Az interface-t kézzel írtam, és kifelejtettem egy mezőt amit az SQL tábla tartalmaz.
+- **Javítás**: Hozzáadtam `item_sort: number` a `TemplateItem` interface-hez.
+- **Megelőzés**: **MINDIG** hasonlítsd össze az interface mezőket az SQL tábla oszlopaival. Ha az SQL-ben van `item_sort`, az interface-ben is KELL lennie. Checklist: minden SQL oszlop = egy interface property.
+
+### [HIBA-002] Supabase FK reláció típusozás — `.table.number` hiba
+- **Dátum**: 2026-03-30 (v1.2.0)
+- **Fájl**: `src/app/admin/reports/page.tsx:61`
+- **Hibaüzenet**: `Type error: Property 'number' does not exist on type '{ number: any; }[]'.`
+- **Gyökérok**: Supabase `.select('table:tables(number)')` esetén a TypeScript a relációt **tömbként** (`{ number: any }[]`) típusozza, nem objektumként. Ezért `o.table.number` helyett `o.table[0].number` kellene, de valójában futásidőben objektumot ad vissza (nem tömböt).
+- **Javítás**: A `.map()` callback-ben `(o: any)` típust használtam: `.map((o: any) => [...])` — ez megkerüli a Supabase TS típus problémát.
+- **Megelőzés**: **MINDIG** használj `(item: any)` cast-ot amikor Supabase `.select()` eredményt iterálsz és FK relációkat (`table:tables(...)`, `venue:venues(...)`, `menu_item:menu_items(...)`) használsz. VAGY használj `useState<any[]>([])` a state-hez. A kettő közül az egyik KÖTELEZŐ.
+
+### [HIBA-003] Supabase FK — új oszlopok nem ismertek a TS típusokban
+- **Dátum**: 2026-03-30 (v1.2.0)
+- **Fájl**: `src/app/admin/reports/page.tsx:137`
+- **Hibaüzenet**: Potenciális — `total_orders`, `total_spent` nem létezik a `profiles` Supabase típusban
+- **Gyökérok**: Ha ALTER TABLE-lel új oszlopot adsz hozzá (`total_orders`, `total_spent`), a Supabase TS generált típusok nem frissülnek automatikusan. A `.select()` eredmény típusa nem tartalmazza az új mezőket.
+- **Javítás**: `(c: any)` cast a `.map()` callback-ben.
+- **Megelőzés**: Ha SQL migrációval új oszlopokat adsz egy meglévő táblához, az adott tábla select eredményeit MINDIG `(row: any)` casttal kezeld, amíg a típusok nem lesznek újragenerálva (`supabase gen types`).
+
+---
+
+## 🟡 KATEGÓRIA 2: SQL / RLS / Adatbázis hibák
+
+### [HIBA-004] SQL szintaxis hiba — RLS policy zárójelezés
+- **Dátum**: 2026-03-29 (v1.0.0)
+- **Fájl**: `supabase/migrations/001_initial_schema.sql:47`
+- **Hibaüzenet**: `syntax error at or near "or" LINE 47: ) or is_active = true;`
+- **Gyökérok**: Az RLS policy USING() zárójelén kívül volt egy `or is_active = true` feltétel. A helyes szintaxis: `USING ((feltétel1) OR (feltétel2))` — minden feltétel a USING() BELSEJÉBE kerül.
+- **Javítás**: Az egész policy-t újraírtam helyes zárójelezéssel.
+- **Megelőzés**: RLS policy írásakor MINDIG ellenőrizd, hogy MINDEN feltétel a `USING(...)` zárójelen BELÜL van. Soha ne legyen logikai operátor a zárójelen kívül.
+
+### [HIBA-005] RLS policy circular dependency — profil olvasás blokkolva
+- **Dátum**: 2026-03-29 (v1.0.1)
+- **Fájl**: Profiles RLS policies
+- **Hibaüzenet**: Profil lekérdezés sikertelen admin felhasználóknál
+- **Gyökérok**: A profiles SELECT policy JOIN-t tartalmazott a `venues` táblára, ami maga is RLS-sel volt védve. Ha a venues policy is hivatkozott a profiles-ra → circular dependency. Az admin felhasználó nem tudta olvasni a saját profilját.
+- **Javítás**: Egyszerű policy: `CREATE POLICY "profiles_select_authenticated" ON public.profiles FOR SELECT USING (auth.uid() IS NOT NULL);` — minden bejelentkezett felhasználó olvashat minden profilt.
+- **Megelőzés**: **SOHA** ne legyen RLS SELECT policy-ban JOIN más RLS-védett táblára. Ha kell cross-table check, használj egyszerű `auth.uid()` alapú feltételt, vagy SECURITY DEFINER funkciót.
+
+### [HIBA-006] Profil email NULL — role update 0 rows
+- **Dátum**: 2026-03-29 (v1.0.1)
+- **Hibaüzenet**: `UPDATE public.profiles SET role = 'admin' WHERE email = 'x@y.com'` → 0 rows affected
+- **Gyökérok**: A `handle_new_user()` trigger nem másolta át az email-t az `auth.users` táblából a `profiles` táblába. A `profiles.email` mező NULL volt, ezért a WHERE feltétel nem talált sort.
+- **Javítás**: JOIN-os UPDATE: `UPDATE profiles p SET role = 'admin' FROM auth.users u WHERE p.id = u.id AND u.email = 'x@y.com';`
+- **Megelőzés**: A `handle_new_user()` trigger MINDIG másolja át az email-t: `NEW.raw_user_meta_data->>'email'` VAGY `(SELECT email FROM auth.users WHERE id = NEW.id)`. Soha ne feltételezd, hogy a profiles.email ki van töltve.
+
+### [HIBA-007] Supabase FK constraint név — törékeny hivatkozás
+- **Dátum**: 2026-03-30 (v1.1.0)
+- **Fájl**: `src/app/siteadmin/venues/page.tsx`
+- **Hibaüzenet**: Potenciális — `profiles!venues_owner_id_fkey` nem létezik
+- **Gyökérok**: `.select('*, owner:profiles!venues_owner_id_fkey(full_name, email)')` — a constraint név adatbázisonként eltérhet. A Supabase automatikusan generálja a FK constraint nevet, és nem garantált, hogy mindig `venues_owner_id_fkey`.
+- **Javítás**: Lecseréltem `.select('*, owner:profiles(full_name, email)')` — constraint név nélkül, a Supabase automatikusan feloldja.
+- **Megelőzés**: **SOHA** ne használj explicit FK constraint nevet a `.select()` relációkban. Használd a szimpla `table_name(columns)` szintaxist. Ha ambiguous, használd a `table_name!column_name(columns)` formátumot (oszlop nevet, NEM constraint nevet).
+
+---
+
+## 🟠 KATEGÓRIA 3: Auth / Redirect / Session hibák
+
+### [HIBA-008] Auth redirect loop — 4 helyen konkurens redirect
+- **Dátum**: 2026-03-29 (v1.0.0 → v1.0.1)
+- **Fájl**: middleware.ts + page.tsx + customer/page.tsx + admin/layout.tsx
+- **Hibaüzenet**: Végtelen loading screen — az alkalmazás sosem jutott túl az „Átirányítás..." képernyőn
+- **Gyökérok**: 4 különböző helyen volt routing logika, és egymásba irányítottak: middleware → /admin → admin/layout ellenőrzi → /customer → customer/page ellenőrzi → /admin → ∞ loop
+- **Javítás**:
+  1. `middleware.ts` — CSAK cookie frissítés, NULLA redirect
+  2. `page.tsx` — Egyetlen auth check 4s timeout-tal, `hasRedirected` ref a dupla redirect ellen
+  3. `customer/page.tsx` — Admin felhasználóknak "Admin panel megnyitása" GOMB, nem redirect
+  4. `admin/layout.tsx` — Nem-admin felhasználóknak error screen, nem redirect
+- **Megelőzés**: **EGY SZABÁLY**: Routing döntés KIZÁRÓLAG client-side, egyetlen helyen. Middleware SOHA ne redirecteljen. Ha jogosultsági hiba van, mutass error screen-t, ne redirectelj másik oldalra.
+
+### [HIBA-009] getSession() vs getUser() — elavult session
+- **Dátum**: 2026-03-29
+- **Gyökérok**: `getSession()` a helyi cache-ből olvas, ami elavult lehet. `getUser()` mindig a Supabase szerverhez fordul.
+- **Megelőzés**: Auth ellenőrzésnél MINDIG `getUser()` a megbízható módszer, NEM `getSession()`.
+
+---
+
+## 🔵 KATEGÓRIA 4: Build / Import / Kompatibilitás hibák
+
+### [HIBA-010] Next.js fájlnév konvenció — page.tsx kötelező
+- **Dátum**: 2026-03-29
+- **Gyökérok**: A felhasználó a letöltött fájlokat `admin-layout.tsx` és `customer-page.tsx` néven mentette el `layout.tsx` és `page.tsx` helyett. Next.js App Router CSAK a `page.tsx`, `layout.tsx`, `loading.tsx` stb. pontos neveket ismeri fel.
+- **Megelőzés**: Fájlok MINDIG a pontos Next.js konvenció szerinti nevekkel készüljenek. A letöltési/mentési utasításokban MINDIG jelöld meg a cél fájlnevet.
+
+### [HIBA-011] Lucide React ikon import — nem létező ikon név
+- **Dátum**: Általános (megelőző figyelmeztetés)
+- **Megelőzés**: Lucide React ikonokat MINDIG a hivatalos listáról importáld. Ha nem biztos, hogy létezik, használj olyan ikont ami biztosan megvan (pl. `Settings`, `User`, `Search`, `Plus`, `Check`, `X`). A `lucide-react@0.363.0` verzióban ezek biztosan elérhetők: Zap, ClipboardList, UtensilsCrossed, Package, BarChart3, Settings, HelpCircle, Menu, Bell, LogOut, Shield, ChevronRight, X, Monitor, CalendarClock, FileDown, Plus, Pencil, Trash2, Search, CheckCircle, XCircle, Volume2, VolumeX, Maximize, Minimize, RefreshCw, Check, Clock, AlertTriangle, Download, FileSpreadsheet, Calendar, TrendingUp, ShoppingBag, Users, Phone, Mail, User, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Sparkles, Star, MapPin, Store, ScrollText, LayoutDashboard, Activity, Info, AlertCircle, ToggleLeft, ToggleRight, Save, Filter, Bug, Send.
+
+---
+
+## 🟢 KATEGÓRIA 5: CSS / UI hibák
+
+### [HIBA-012] Admin `.input` class hiányzik
+- **Dátum**: 2026-03-30 (v1.1.0)
+- **Gyökérok**: Az admin oldalak `.input` CSS class-t használnak az input mezőkhöz, de ez nem volt definiálva a globals.css-ben. A Tailwind nem generálja automatikusan.
+- **Javítás**: `.input` class hozzáadása a globals.css-hez explicit CSS-ként.
+- **Megelőzés**: Ha egyedi CSS class-t használsz (`.input`, `.status-badge`, `.animate-slide-up`), MINDIG ellenőrizd, hogy definiálva van-e a globals.css-ben.
+
+### [HIBA-013] Admin sidebar mobil nézet — nem jelenik meg
+- **Dátum**: 2026-03-30
+- **Gyökérok**: A `display: none` `@media(max-width:768px)` felülírta a JavaScript-ből adott `translate-x-0` class-t.
+- **Javítás**: CSS override: `.admin-sidebar.translate-x-0 { display: flex !important; }`
+- **Megelőzés**: Ha egy elem CSS-ből `display:none`, a JS class hozzáadás NEM elég — `!important` kell a CSS-ben is.
+
+---
+
+## 📋 ELLENŐRZŐ LISTA (Minden commit előtt)
+
+- [ ] Minden interface/type property megegyezik az SQL tábla oszlopaival?
+- [ ] Supabase `.select()` FK relációk használatánál van `(row: any)` cast?
+- [ ] Nincs explicit FK constraint név a Supabase select-ben?
+- [ ] Nincs middleware-ben redirect?
+- [ ] Auth check `getUser()`-t használ, nem `getSession()`-t?
+- [ ] Fájlnevek Next.js konvenciónak megfelelnek (`page.tsx`, `layout.tsx`)?
+- [ ] Egyedi CSS class-ok definiálva vannak a globals.css-ben?
+- [ ] Lucide ikonok a hivatalos listáról importálva?
+- [ ] RLS policy-kban nincs cross-table JOIN más RLS-védett táblára?
+- [ ] Új SQL oszlopok esetén a kód `(: any)` castot használ?
+
+---
+
+*Utoljára frissítve: 2026-03-30 — v1.2.0*
+*Ez egy FOLYAMATOSAN BŐVÜLŐ fájl. Új hibákat MINDIG appendelj, SOHA ne törölj!*
