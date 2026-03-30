@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { MenuItem, MenuCategory } from '@/types'
 import { formatPrice } from '@/lib/utils'
-import { Plus, Pencil, Trash2, Search, Upload, CheckCircle, XCircle } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Upload, CheckCircle, XCircle, Sparkles } from 'lucide-react'
+import Link from 'next/link'
 import toast from 'react-hot-toast'
 
 export default function MenuPage() {
@@ -83,6 +84,12 @@ export default function MenuPage() {
           <p className="text-stone-500 text-sm">{items.length} termék, {categories.length} kategória</p>
         </div>
         <div className="flex gap-2">
+          <Link
+            href="/admin/menu/templates"
+            className="flex items-center gap-2 px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-xl text-sm font-medium transition-colors"
+          >
+            <Sparkles className="w-4 h-4" /> Sablonok
+          </Link>
           <button
             onClick={() => setEditCat({ sort_order: categories.length })}
             className="flex items-center gap-2 px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-medium transition-colors"
