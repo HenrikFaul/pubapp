@@ -1,0 +1,69 @@
+# Kapakka PubApp — Changelog
+
+Minden változtatás dátummal és leírással.
+
+---
+
+## [1.1.0] — 2026-03-30
+
+### ✨ Új funkciók
+
+#### Site Admin Panel (`/siteadmin/`)
+- **Dashboard**: Összes felhasználó, helyszín, rendelés, bevétel metrikák valós időben
+- **Felhasználó kezelés**: Szerepkörök módosítása, felhasználók tiltása/engedélyezése, keresés
+- **Helyszín áttekintés**: Összes regisztrált venue státusza, aktivitása, bevételi adatok
+- **Aktivitás logok**: Rendszer szintű eseménynapló (regisztrációk, rendelések, hibák)
+
+#### Étlap/Itallap Sablonok (Vendéglátói panel)
+- **Magyar kocsma sablon**: Csapolt sörök, üveges sörök, borok, röviditalok, koktélok, üdítők — 40+ előre kitöltött termék
+- **Étterem sablon**: Előételek, levesek, főételek, desszertek, gyerekmenü — 30+ termék
+- **Kávézó sablon**: Kávék, teák, limonádék, sütemények — 25+ termék
+- **Koktélbár sablon**: Klasszikus és signature koktélok, gin&tonic, whisky válogatás — 35+ termék
+- Egyetlen kattintással betölthetők az étlapra
+- Kategóriák automatikus létrehozásával
+
+#### Vendéglátói UI fejlesztések
+- Továbbfejlesztett admin sidebar: ikonok Lucide React-ból, tooltipek, aktív állapot vizuálisan kiemelt
+- Admin fejléc: venue név + élő rendelésjellző badge
+- Konfigurátor bővítés: Asztal kapacitás szerkesztése, QR kód letöltés gomb
+- Étlap szerkesztő: "Sablon betöltése" gomb a gyors induláshoz
+
+### 🎨 UI/UX javítások
+- Admin sidebar: sötét háttér gradienssel, átlátszó blur effekt mobil nézetben
+- Státusz badge-ek: konzisztens szín és ikon rendszer (sárga/kék/narancs/zöld)
+- Kártya design: finomabb árnyékok, lekerekített sarkok (16px)
+- Gombok: hover animáció, disabled állapot vizuális visszajelzés
+- Mobile-first responsive elrendezés az összes új oldalon
+- Admin oldalsáv: Lucide ikonok az emoji ikonok helyett
+- Siteadmin link a superadmin felhasználók számára
+
+### 🗄️ Adatbázis
+- `activity_logs` tábla: rendszer szintű eseménynaplózás
+- `menu_templates` tábla: előre definiált étlap sablonok
+- `menu_template_items` tábla: sablon tételek
+- RLS policies az új táblákhoz
+- Trigger: automatikus logolás regisztrációnál és rendelésnél
+
+### 🔧 Technikai
+- `changelog.md` bevezetése a változtatások nyomon követésére
+
+---
+
+## [1.0.1] — 2026-03-29
+
+### 🐛 Hibajavítások
+- Auth redirect loop javítása (middleware + page.tsx + customer/page.tsx + admin/layout.tsx egymásba irányított)
+- RLS policy javítás: profil olvasás engedélyezés minden bejelentkezett felhasználónak
+- Szerepkör hozzárendelés javítás: auth.users JOIN-nal email alapján
+- Email mező szinkronizálás: handle_new_user() trigger javítás
+
+---
+
+## [1.0.0] — 2026-03-28
+
+### 🎉 Első kiadás
+- Vendég oldal: helyszín kereső, QR rendelés, rendeléskövetés, kocsmakvíz, játékok
+- Admin panel: kiszolgálás, rendelések, étlap, készlet, statisztikák, konfigurátor, segítség
+- Supabase auth + RLS
+- Valós idejű rendeléskezelés (Realtime)
+- PWA manifest
