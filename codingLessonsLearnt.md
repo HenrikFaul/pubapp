@@ -104,6 +104,16 @@
 - **Gyökérok**: `getSession()` a helyi cache-ből olvas, ami elavult lehet. `getUser()` mindig a Supabase szerverhez fordul.
 - **Megelőzés**: Auth ellenőrzésnél MINDIG `getUser()` a megbízható módszer, NEM `getSession()`.
 
+### [HIBA-014] Venue JOIN a profil lekérdezésben blokkolja az auth-ot
+- **Dátum**: 2026-03-30 (v1.2.0)
+- **Fájl**: `src/app/admin/layout.tsx`
+- **Hibaüzenet**: "Nincs hozzáférésed" — admin felhasználó nem tud belépni az admin panelre
+- **Gyökérok**: A profil lekérdezés `select('*, venue:venues(*)')` formában volt, ami FK JOIN-t csinál a venues táblára. Ha a `profiles.venue_id` NULL (nincs venue hozzárendelve), VAGY ha nincs explicit FK constraint a DB-ben, VAGY ha az RLS policy blokkolja a venues lekérést, az EGÉSZ lekérdezés hibával tér vissza (`profileError` != null). Emiatt a kód a `no-permission` ágra futott, pedig a felhasználó valójában admin role-lal rendelkezett.
+- **Javítás**: A profil és venue lekérdezést SZÉTVÁLASZTOTTAM:
+  1. Először: `select('*')` a profiles-ból (FK JOIN nélkül) — ez az auth check
+  2. Utána: külön `select('*')` a venues-ból venue_id alapján — ez már NEM blokkolja az auth-ot
+- **Megelőzés**: **SOHA** ne legyen FK JOIN egy auth-kritikus lekérdezésben! Az auth ellenőrzés (profil + role check) MINDIG egyszerű, single-table query legyen. Ha kiegészítő adatok kellenek (venue, orders stb.), azokat KÜLÖN, NEM-BLOKKOLÓ lekérdezésben szerzd be MIUTÁN az auth check sikeres.
+
 ---
 
 ## 🔵 KATEGÓRIA 4: Build / Import / Kompatibilitás hibák
@@ -137,6 +147,7 @@
 
 ## 📋 ELLENŐRZŐ LISTA (Minden commit előtt)
 
+- [ ] Auth-kritikus lekérdezésben NINCS FK JOIN? (profiles select = egyszerű `select('*')`)
 - [ ] Minden interface/type property megegyezik az SQL tábla oszlopaival?
 - [ ] Supabase `.select()` FK relációk használatánál van `(row: any)` cast?
 - [ ] Nincs explicit FK constraint név a Supabase select-ben?
