@@ -52,7 +52,7 @@ export default function ReportsPage() {
           .order('placed_at', { ascending: false })
 
         const headers = ['Rendelésszám', 'Státusz', 'Típus', 'Fizetés', 'Összeg (HUF)', 'Asztal', 'Tételek', 'Megjegyzés', 'Leadva', 'Elkészült']
-        const rows = (data || []).map(o => [
+        const rows = (data || []).map((o: any) => [
           o.order_number,
           o.status,
           o.order_type === 'table_service' ? 'Asztal' : 'Pult',
@@ -134,7 +134,7 @@ export default function ReportsPage() {
           .order('total_spent', { ascending: false })
 
         const headers = ['Név', 'Email', 'Rendelések', 'Költés (HUF)', 'Hűségpontok', 'Utolsó rendelés', 'Regisztráció']
-        const rows = (data || []).map(c => [
+        const rows = (data || []).map((c: any) => [
           c.full_name || '', c.email || '', String(c.total_orders || 0), String(c.total_spent || 0),
           String(c.loyalty_points || 0),
           c.last_order_at ? new Date(c.last_order_at).toLocaleDateString('hu-HU') : '-',
