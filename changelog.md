@@ -111,3 +111,38 @@ Minden változtatás dátummal és leírással.
 
 ### 📝 Megjegyzés
 - Ez a kiadás kifejezetten a korábban működő funkciók visszaállítására és a redesign regressziók megszüntetésére készült.
+
+
+---
+
+## [1.3.9] — 2026-04-01
+
+### Hivatkozások
+- Versioning: `versioning/13903921_v1.3.9_ai_dev_prompts.md`
+
+### 🐛 Hibajavítások — Venue finder és address search
+
+#### `supabase/functions/place-search/index.ts`
+
+- **[HIBA-034] Geoapify `name` paraméter javítva** — A Places API v2 endpoint-on a `text` param csendben figyelmen kívül volt hagyva (geocoding API param). Lecserélve `name`-re, ami a Places v2 dokumentált POI névszűrő paramétere. A két Geoapify mód szét lett választva: `searchGeoapifyByName()` (name-filtered) és `searchGeoapifyNearby()` (pure category nearby).
+
+- **[HIBA-035] TomTom `fuzzySearch` by-name / `poiSearch` nearby szétválasztás** — A korábbi kód `"BUDAPEST restaurant"` kombináció-t adott poiSearch-nek, ami 0 találatot eredményezett. A javítás: két önálló TomTom hívás: `searchTomTomByName()` (`fuzzySearch/{query}`) szabad szöveges névkereséshez, `searchTomTomNearby()` (`poiSearch/{category}`) csak kategória alapú közelségi kereséshez.
+
+- **[HIBA-036] Score-alapú relevancia szűrő** — A hard `textMatchesQuery()` filter cserélve score + lenient fallback stratégiára. Score 3 = névegyezés, score 2 = cím/városegyezés, score 1 = részleges szóegyezés. Ha egyik sem egyezik, az összes találat megmarad (távolság szerint rendezve). A végeredmény soha nem üres puszta szűrési hiba miatt.
+
+- **[HIBA-037] `open_now` filter javítva** — `open_now === true || !Array.isArray(...)` → `open_now !== false`. Az ismeretlen nyitvatartású helyszínek (`null`/`undefined`) többé nem esnek ki.
+
+- **`_debug` mező hozzáadva** a response-hoz: query, resolvedCenter, providerCounts, returned — debug-safe, a klienst nem befolyásolja.
+
+#### `src/lib/place-search.ts`
+
+- **[HIBA-038] Kliensoldali szűrés eltávolítva** az edge function eredményéről — a normalizálás és `external_id` check megmaradt, de az edge function már elvégzi a relevancia-szűrést.
+
+- **Fallback lépcsők bővítve** (3+cache): open_now ejtés → category ejtés → coordinates ejtés → places_cache. Minden lépésnél csak akkor lép a következőre, ha ténylegesen 0 a találat.
+
+### ✅ Regresszióvédelmi checklist
+- [x] `PlaceAutocomplete` publikus API nem sérült
+- [x] Vendégoldali többi funkció (játékok, profil, rendelések, QR flow) nem módosítva
+- [x] Admin oldali navigáció és étlapkezelés nem módosítva
+- [x] Fókuszvesztéses komponensminta (HIBA-030) nem kerül vissza
+- [x] Toast spam (HIBA-033) nem kerül vissza
