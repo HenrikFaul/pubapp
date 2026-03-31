@@ -73,6 +73,30 @@ export function normalizeExternalPlace(raw: any): ExternalPlace {
   }
 }
 
+async function searchCachedPlaces(params: PlaceSearchParams): Promise<ExternalPlace[]> {
+  let request = supabase
+    .from('places_cache')
+    .select('*')
+    .order('updated_at', { ascending: false })
+    .limit(Math.min(Math.max(params.limit || 24, 1), 48))
+
+  if (params.category) {
+    request = request.ilike('category', `%${params.category}%`)
+  }
+
+  if (params.query?.trim()) {
+    const safeQuery = params.query.trim().replace(/[%_]/g, '')
+    request = request.or(`name.ilike.%${safeQuery}%,address.ilike.%${safeQuery}%,city.ilike.%${safeQuery}%`)
+  }
+
+  const { data, error } = await request
+  if (error) return []
+
+  const rows: any[] = Array.isArray(data) ? data : []
+  const normalizedRows: ExternalPlace[] = rows.map((row: any) => normalizeExternalPlace(row))
+  return normalizedRows.filter((row: ExternalPlace) => Boolean(row.external_id))
+}
+
 export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalPlace[]> {
   const payload = {
     query: params.query || '',
@@ -90,7 +114,12 @@ export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalP
 
   if (error) {
     console.warn('[place-search] edge function unavailable:', error.message)
-    return []
+    return searchCachedPlaces(params)
+  }
+
+  if (data && typeof data === 'object' && typeof (data as { error?: unknown }).error === 'string') {
+    console.warn('[place-search] edge function returned error payload:', (data as { error: string }).error)
+    return searchCachedPlaces(params)
   }
 
   const rows: any[] = Array.isArray(data?.results)
@@ -100,6 +129,11 @@ export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalP
       : []
 
   const normalizedRows: ExternalPlace[] = rows.map((row: any) => normalizeExternalPlace(row))
+  const filteredRows: ExternalPlace[] = normalizedRows.filter((row: ExternalPlace) => Boolean(row.external_id))
 
-  return normalizedRows.filter((row: ExternalPlace) => Boolean(row.external_id))
+  if (filteredRows.length > 0) {
+    return filteredRows
+  }
+
+  return searchCachedPlaces(params)
 }

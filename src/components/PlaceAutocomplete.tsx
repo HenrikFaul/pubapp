@@ -11,6 +11,9 @@ interface PlaceAutocompleteProps {
   radiusKm?: number
   latitude?: number
   longitude?: number
+  value?: string
+  onChange?: (value: string) => void
+  onSubmit?: (query: string) => void
   onSelect: (place: ExternalPlace) => void
 }
 
@@ -21,14 +24,31 @@ export default function PlaceAutocomplete({
   radiusKm,
   latitude,
   longitude,
+  value,
+  onChange,
+  onSubmit,
   onSelect,
 }: PlaceAutocompleteProps) {
-  const [query, setQuery] = useState('')
+  const [internalQuery, setInternalQuery] = useState(value ?? '')
   const [results, setResults] = useState<ExternalPlace[]>([])
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
 
+  const query = typeof value === 'string' ? value : internalQuery
   const canSearch = useMemo(() => query.trim().length >= 2, [query])
+
+  function updateQuery(nextValue: string) {
+    if (typeof value !== 'string') {
+      setInternalQuery(nextValue)
+    }
+    onChange?.(nextValue)
+  }
+
+  useEffect(() => {
+    if (typeof value === 'string') {
+      setInternalQuery(value)
+    }
+  }, [value])
 
   useEffect(() => {
     if (!canSearch) {
@@ -64,7 +84,13 @@ export default function PlaceAutocomplete({
         <input
           value={query}
           onFocus={() => setOpen(true)}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => updateQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && query.trim().length >= 2) {
+              event.preventDefault()
+              onSubmit?.(query.trim())
+            }
+          }}
           placeholder={placeholder}
           className="kap-input pl-11 pr-12"
         />
@@ -72,8 +98,9 @@ export default function PlaceAutocomplete({
           <button
             type="button"
             onClick={() => {
-              setQuery('')
+              updateQuery('')
               setResults([])
+              setOpen(false)
             }}
             className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-white/5 p-1 text-white/40 transition hover:text-white"
           >
@@ -96,7 +123,7 @@ export default function PlaceAutocomplete({
                   type="button"
                   onClick={() => {
                     onSelect(place)
-                    setQuery(place.name)
+                    updateQuery(place.name)
                     setOpen(false)
                   }}
                   className="flex w-full items-start gap-3 border-b border-white/5 px-4 py-3 text-left transition hover:bg-white/5"

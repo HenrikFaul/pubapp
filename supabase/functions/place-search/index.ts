@@ -1,11 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-
-declare const Deno: {
-  env: {
-    get: (name: string) => string | undefined
-  }
-  serve: (handler: (request: Request) => Response | Promise<Response>) => void
-}
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,6 +14,11 @@ interface SearchBody {
   radius_km?: number
   open_now?: boolean
   limit?: number
+}
+
+interface Coordinates {
+  latitude: number
+  longitude: number
 }
 
 function json(data: unknown, status = 200) {
@@ -37,11 +36,41 @@ function normalizeCategory(category?: string) {
   return 'pub'
 }
 
+function geoapifyCategoryFilter(category?: string) {
+  const normalized = normalizeCategory(category)
+  if (normalized === 'restaurant') return 'catering.restaurant'
+  if (normalized === 'cafe') return 'catering.cafe'
+  if (normalized === 'bar') return 'catering.bar'
+  return 'catering.pub,catering.bar'
+}
+
+function normalizeTomTomCategory(category?: string) {
+  const normalized = normalizeCategory(category)
+  if (normalized === 'restaurant') return 'restaurant'
+  if (normalized === 'cafe') return 'cafe'
+  if (normalized === 'bar') return 'bar'
+  return 'pub'
+}
+
+function textMatchesQuery(row: any, query?: string) {
+  const normalizedQuery = String(query || '').trim().toLowerCase()
+  if (!normalizedQuery) return true
+  const haystack = [row.name, row.address, row.city, row.category]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+  return haystack.includes(normalizedQuery)
+}
+
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371
   const dLat = ((lat2 - lat1) * Math.PI) / 180
   const dLon = ((lon2 - lon1) * Math.PI) / 180
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
@@ -57,14 +86,41 @@ function dedupe(results: any[]) {
   return Array.from(seen.values())
 }
 
-async function searchGeoapify(params: SearchBody, apiKey: string) {
+async function geocodeGeoapify(query: string, apiKey: string): Promise<Coordinates | null> {
+  const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(query)}&limit=1&apiKey=${apiKey}`
+  const response = await fetch(url)
+  if (!response.ok) return null
+  const payload = await response.json()
+  const feature = payload.features?.[0]
+  if (!feature?.properties) return null
+  return {
+    latitude: Number(feature.properties.lat),
+    longitude: Number(feature.properties.lon),
+  }
+}
+
+async function geocodeTomTom(query: string, apiKey: string): Promise<Coordinates | null> {
+  const url = `https://api.tomtom.com/search/2/geocode/${encodeURIComponent(query)}.json?limit=1&key=${apiKey}`
+  const response = await fetch(url)
+  if (!response.ok) return null
+  const payload = await response.json()
+  const row = payload.results?.[0]
+  if (!row?.position) return null
+  return {
+    latitude: Number(row.position.lat),
+    longitude: Number(row.position.lon),
+  }
+}
+
+async function searchGeoapify(params: SearchBody, apiKey: string, center?: Coordinates | null, textQuery?: string) {
   const category = normalizeCategory(params.category)
-  const hasCoords = Number.isFinite(Number(params.latitude)) && Number.isFinite(Number(params.longitude))
+  const categories = geoapifyCategoryFilter(params.category)
+  const hasCoords = Boolean(center && Number.isFinite(Number(center.latitude)) && Number.isFinite(Number(center.longitude)))
   const radius = Math.max(1, params.radius_km || 10) * 1000
-  const bias = hasCoords ? `&bias=proximity:${params.longitude},${params.latitude}` : ''
-  const filter = hasCoords ? `&filter=circle:${params.longitude},${params.latitude},${radius}` : ''
-  const query = params.query ? `&text=${encodeURIComponent(params.query)}` : ''
-  const url = `https://api.geoapify.com/v2/places?categories=catering.${category}${bias}${filter}${query}&limit=${params.limit || 24}&apiKey=${apiKey}`
+  const bias = hasCoords ? `&bias=proximity:${center!.longitude},${center!.latitude}` : ''
+  const filter = hasCoords ? `&filter=circle:${center!.longitude},${center!.latitude},${radius}` : ''
+  const query = textQuery ? `&text=${encodeURIComponent(textQuery)}` : ''
+  const url = `https://api.geoapify.com/v2/places?categories=${categories}${bias}${filter}${query}&limit=${params.limit || 24}&apiKey=${apiKey}`
   const response = await fetch(url)
   if (!response.ok) return []
   const payload = await response.json()
@@ -88,13 +144,13 @@ async function searchGeoapify(params: SearchBody, apiKey: string) {
   }))
 }
 
-async function searchTomTom(params: SearchBody, apiKey: string) {
-  const category = normalizeCategory(params.category)
+async function searchTomTom(params: SearchBody, apiKey: string, center?: Coordinates | null, textQuery?: string) {
+  const category = normalizeTomTomCategory(params.category)
   const radius = Math.max(1, params.radius_km || 10) * 1000
-  const query = params.query ? encodeURIComponent(params.query) : category
-  const hasCoords = Number.isFinite(Number(params.latitude)) && Number.isFinite(Number(params.longitude))
-  const locationPart = hasCoords ? `lat=${params.latitude}&lon=${params.longitude}&radius=${radius}&` : ''
-  const url = `https://api.tomtom.com/search/2/poiSearch/${query}.json?${locationPart}limit=${params.limit || 24}&key=${apiKey}`
+  const searchQuery = textQuery ? `${textQuery} ${category}` : category
+  const hasCoords = Boolean(center && Number.isFinite(Number(center.latitude)) && Number.isFinite(Number(center.longitude)))
+  const locationPart = hasCoords ? `lat=${center!.latitude}&lon=${center!.longitude}&radius=${radius}&` : ''
+  const url = `https://api.tomtom.com/search/2/poiSearch/${encodeURIComponent(searchQuery)}.json?${locationPart}limit=${params.limit || 24}&key=${apiKey}`
   const response = await fetch(url)
   if (!response.ok) return []
   const payload = await response.json()
@@ -120,11 +176,13 @@ Deno.serve(async (request) => {
 
   try {
     const body = (await request.json()) as SearchBody
+    const trimmedQuery = String(body.query || '').trim()
     const hasCoords = Number.isFinite(Number(body.latitude)) && Number.isFinite(Number(body.longitude))
-    const latitude = Number(body.latitude)
-    const longitude = Number(body.longitude)
+    const explicitCenter = hasCoords
+      ? { latitude: Number(body.latitude), longitude: Number(body.longitude) }
+      : null
 
-    if (!hasCoords && !body.query) {
+    if (!explicitCenter && !trimmedQuery) {
       return json({ results: [], error: 'query or coordinates are required' }, 400)
     }
 
@@ -132,22 +190,34 @@ Deno.serve(async (request) => {
     const geoapifyKey = Deno.env.get('GEOAPIFY_API_KEY') || ''
     const tomtomKey = Deno.env.get('TOMTOM_API_KEY') || ''
 
-    const [geoapifyResults, tomtomResults] = await Promise.all([
-      geoapifyKey ? searchGeoapify({ ...body, latitude, longitude, limit }, geoapifyKey) : Promise.resolve([]),
-      tomtomKey ? searchTomTom({ ...body, latitude, longitude, limit }, tomtomKey) : Promise.resolve([]),
+    let resolvedCenter = explicitCenter
+    if (!resolvedCenter && trimmedQuery) {
+      resolvedCenter =
+        (geoapifyKey ? await geocodeGeoapify(trimmedQuery, geoapifyKey) : null) ||
+        (tomtomKey ? await geocodeTomTom(trimmedQuery, tomtomKey) : null)
+    }
+
+    const [geoTextResults, tomtomTextResults, geoNearbyResults, tomtomNearbyResults] = await Promise.all([
+      trimmedQuery && geoapifyKey ? searchGeoapify({ ...body, limit }, geoapifyKey, explicitCenter || resolvedCenter, trimmedQuery) : Promise.resolve([]),
+      trimmedQuery && tomtomKey ? searchTomTom({ ...body, limit }, tomtomKey, explicitCenter || resolvedCenter, trimmedQuery) : Promise.resolve([]),
+      resolvedCenter && geoapifyKey ? searchGeoapify({ ...body, limit, latitude: resolvedCenter.latitude, longitude: resolvedCenter.longitude }, geoapifyKey, resolvedCenter) : Promise.resolve([]),
+      resolvedCenter && tomtomKey ? searchTomTom({ ...body, limit, latitude: resolvedCenter.latitude, longitude: resolvedCenter.longitude }, tomtomKey, resolvedCenter) : Promise.resolve([]),
     ])
 
-    let merged = dedupe([...geoapifyResults, ...tomtomResults]).map((row) => ({
-      ...row,
-      distance_km: typeof row.distance_km === 'number'
-        ? row.distance_km
-        : hasCoords
-          ? haversineKm(latitude, longitude, row.latitude || latitude, row.longitude || longitude)
-          : undefined,
-    }))
+    let merged = dedupe([...geoTextResults, ...tomtomTextResults, ...geoNearbyResults, ...tomtomNearbyResults])
+      .filter((row) => textMatchesQuery(row, trimmedQuery))
+      .map((row) => ({
+        ...row,
+        distance_km:
+          typeof row.distance_km === 'number'
+            ? row.distance_km
+            : resolvedCenter
+              ? haversineKm(resolvedCenter.latitude, resolvedCenter.longitude, row.latitude || resolvedCenter.latitude, row.longitude || resolvedCenter.longitude)
+              : undefined,
+      }))
 
     if (body.open_now) {
-      merged = merged.filter((row) => row.open_now === true || Array.isArray(row.opening_hours_text) === false)
+      merged = merged.filter((row) => row.open_now === true || !Array.isArray(row.opening_hours_text))
     }
 
     merged.sort((left, right) => {

@@ -217,3 +217,230 @@
 - [ ] A `supabase/functions/**` mappa ki van zárva a Next.js root `tsconfig.json` typecheckjéből?
 - [ ] A Deno runtime-os Edge Function saját runtime deklarációval vagy típussal rendelkezik?
 - [ ] A Supabase Edge Function ellenőrzése külön történik a Next app buildtől?
+
+
+## 🟣 KATEGÓRIA 6: Supabase Edge Functions / Deno / Deploy
+
+### [HIBA-023] Next.js build beletípusellenőrzi a Supabase Edge Functionöket → `Cannot find name 'Deno'`
+- **Dátum**: 2026-03-31 (internetes gyűjtés)
+- **Fájl**: `supabase/functions/**` + `tsconfig.json` (Next.js)
+- **Hibaüzenet**: `Type error: Cannot find name 'Deno'.` (vagy: `Cannot find module 'https://deno.land/...' or its corresponding type declarations.`)
+- **Gyökérok**: A Next.js `next build` TypeScript lépése a repo-ban lévő `.ts/.tsx` fájlokat a saját `tsconfig.json` szerint típusellenőrzi. A Supabase Edge Functionök viszont Deno kompatibilis runtime-ra készülnek (Deno globálokkal, import map-pel / URL-es importokkal), ezért a Node/Next TypeScript környezetben a `Deno.*` és a Deno-specifikus importok ismeretlenek → build blokkol.
+- **Javítás**:
+  1. Zárd ki a Deno-s Edge Function könyvtárat a Next TypeScript buildből (és garantáld, hogy a Next app _nem importál_ közvetlenül `supabase/functions/**` alól):
+     ```json
+     // tsconfig.json
+     {
+       "exclude": [
+         "node_modules",
+         "supabase/functions/**/*"
+       ]
+     }
+     ```
+  2. Az Edge Function fájlok tetején add hozzá a Supabase Edge Runtime típusdefiníciókat (editor support + Deno globálok):
+     ```ts
+     // supabase/functions/<fn>/index.ts
+     import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
+     ```
+  3. VSCode-ban engedélyezd a Deno language servert csak a `supabase/functions` folderre (ne az egész workspace-re), hogy ne ütközzön a Next-es TS szerverrel:
+     ```json
+     // .vscode/settings.json
+     {
+       "deno.enablePaths": ["./supabase/functions"],
+       "deno.importMap": "./supabase/functions/import_map.json"
+     }
+     ```
+- **Megelőzés**:
+  - Monorepo (Next + Deno) esetén különítsd el a type-check környezeteket: Next build = Node/TS, Edge Functions = Deno (külön ellenőrzés: `supabase functions serve` / Deno check).
+  - Checklist:
+    - [ ] `supabase/functions/**` ki van zárva a Next `tsconfig.json`-ből?
+    - [ ] Minden Edge Function tetején ott van az `edge-runtime.d.ts` import?
+    - [ ] A Deno VSCode extension csak a `supabase/functions` útvonalon fut?
+
+- **Források**:
+  - https://supabase.com/docs/guides/functions/development-environment
+  - https://supabase.com/docs/guides/functions/auth
+  - https://github.com/orgs/supabase/discussions/22470
+  - https://jsr.io/@supabase/functions-js/doc/edge-runtime.d.ts/
+  - https://www.typescriptlang.org/tsconfig#exclude
+
+### [HIBA-024] Next.js Edge Runtime / middleware: Node modul import → build/runtime crash
+- **Dátum**: 2026-03-31 (internetes gyűjtés)
+- **Fájl**: `middleware.ts` (és bármely Edge runtime-ban futó Route Handler/Proxy)
+- **Hibaüzenet**: `Error: The edge runtime does not support Node.js 'crypto' module` (és hasonló: `fs`, `child_process`, `process` stb.)
+- **Gyökérok**: A Next.js middleware és az Edge Runtime környezet nem támogat natív Node.js API-kat és globálokat. Ha middleware-ben vagy Edge runtime-os route-ban Node-only csomag (vagy transzitív Node import) jelenik meg, a build vagy a futásidő elhasal.
+- **Javítás**:
+  1. Middleware-ben csak Web API-kompatibilis kód legyen (pl. `fetch`, Web Crypto API).
+  2. Node-only logikát (fájlkezelés, Node crypto, child_process, stb.) vidd át Node runtime-ágnak megfelelő helyre (pl. Server Action / Node runtime-os Route Handler), és a middleware maradjon minimális (routing, header/cookie kezelés).
+- **Megelőzés**:
+  - Checklist:
+    - [ ] `middleware.ts` nem importál Node modulokat (`crypto`, `fs`, `path`, `child_process`...)?
+    - [ ] Edge runtime-ban használt dependency-k ESM kompatibilisek és nem használnak natív Node API-kat?
+
+- **Források**:
+  - https://nextjs.org/docs/messages/node-module-in-edge-runtime
+  - https://nextjs.org/docs/app/api-reference/edge
+  - https://vercel.com/docs/functions/runtimes/edge
+
+### [HIBA-025] Supabase Edge Function hívás böngészőből: CORS preflight (OPTIONS) hiánya
+- **Dátum**: 2026-03-31 (internetes gyűjtés)
+- **Fájl**: `supabase/functions/<fn>/index.ts`
+- **Hibaüzenet**: Böngésző konzol: `blocked by CORS policy` / `Response to preflight request doesn't pass access control check` / `No 'Access-Control-Allow-Origin' header...`
+- **Gyökérok**: Böngészőből hívott Edge Function esetén a CORS preflight (OPTIONS) kérés kötelező. Ha a function nem kezeli az OPTIONS-t, vagy nem adja vissza a szükséges `Access-Control-Allow-*` headereket (különösen `authorization, x-client-info, apikey, content-type`), a böngésző blokkolja a hívást, még akkor is, ha a function logikája egyébként helyes.
+- **Javítás**:
+  1. **Ajánlott (supabase-js v2.95.0+)**: használd a `corsHeaders` exportot, hogy mindig szinkronban legyen a kliens által küldött headerekkel:
+     ```ts
+     import { corsHeaders } from '@supabase/supabase-js/cors'
+
+     Deno.serve(async (req) => {
+       if (req.method === 'OPTIONS') {
+         return new Response('ok', { headers: corsHeaders })
+       }
+
+       // ...logic...
+
+       return new Response(JSON.stringify({ ok: true }), {
+         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+         status: 200,
+       })
+     })
+     ```
+  2. Régebbi supabase-js verziónál `_shared/cors.ts` file-ba tedd a `corsHeaders` objektumot, és importáld.
+- **Megelőzés**:
+  - Checklist:
+    - [ ] Minden browserből hívható Edge Function kezeli az OPTIONS preflightot?
+    - [ ] A response minden ágon tartalmazza a CORS headereket (success + error is)?
+
+- **Források**:
+  - https://supabase.com/docs/guides/functions/cors
+  - https://supabase.com/docs/guides/troubleshooting/unable-to-call-edge-function
+
+### [HIBA-026] Edge Functionben hiányzó env var / secret: `Deno.env.get()` → `undefined` productionban
+- **Dátum**: 2026-03-31 (internetes gyűjtés)
+- **Fájl**: `supabase/functions/<fn>/index.ts` + Supabase secrets (Dashboard/CLI)
+- **Hibaüzenet**: 500 / runtime exception (pl. hiányzó API key), vagy logban: `undefined` / `null` értékek a `Deno.env.get('...')` hívásnál
+- **Gyökérok**: Lokálisan működik (mert `.env` jelen van), de deploy után a secret nincs beállítva a Supabase projectben. Edge Functions-ben a production env varokat külön kell felvenni (Dashboard vagy `supabase secrets set`). Lokálisan sem mindegy, hogy hova kerül az `.env` (alapértelmezett: `supabase/functions/.env`, vagy explicit `--env-file`).
+- **Javítás**:
+  1. Lokális fejlesztés: használj `supabase/functions/.env` fájlt **vagy** indításkor explicit env file-t:
+     ```bash
+     supabase functions serve <fn> --env-file .env.local
+     ```
+  2. Production: secrets feltöltése Dashboardon vagy CLI-vel:
+     ```bash
+     supabase secrets set --env-file .env
+     # vagy egyenként:
+     supabase secrets set STRIPE_SECRET_KEY=...
+     ```
+  3. A function elején *fail fast* ellenőrzés (hogy a hiba azonnal, érthetően derüljön ki):
+     ```ts
+     const KEY = Deno.env.get('STRIPE_SECRET_KEY')
+     if (!KEY) return new Response('Missing STRIPE_SECRET_KEY', { status: 500 })
+     ```
+- **Megelőzés**:
+  - Checklist:
+    - [ ] Secrets be vannak állítva a Supabase Dashboard/CLI-ban, nem csak lokális `.env`-ben?
+    - [ ] `.env` file-ok gitignore-ban vannak?
+    - [ ] A kritikus secret-ekre van `fail fast` ellenőrzés?
+
+- **Források**:
+  - https://supabase.com/docs/guides/functions/secrets
+  - https://supabase.com/docs/guides/functions/deploy
+
+### [HIBA-027] Edge Function 401 „Invalid JWT / Missing authorization header” még a kód futása előtt
+- **Dátum**: 2026-03-31 (internetes gyűjtés)
+- **Fájl**: Supabase Edge Function platform beállítás (`verify_jwt`) + `supabase/config.toml` + invokáció (client/fetch/cURL)
+- **Hibaüzenet**: `{ "code": 401, "message": "Invalid JWT" }` vagy `{ "code": 401, "message": "Missing authorization header" }` (a function logban sokszor SEMMI, mert a kód meg sem fut)
+- **Gyökérok**:
+  - A Supabase Edge Functions-ben van egy built-in (legacy) JWT ellenőrzés, ami a function kód futása előtt történik. Ha az Authorization header hiányzik, a token lejárt/hibás, vagy a projekt már az új (aszimmetrikus) kulcsokra váltott, a legacy ellenőrzés elbukik és 401-et ad vissza.
+  - Új API key modellnél (publishable/secret `sb_...`) a legacy JWT ellenőrzés nem mindig kompatibilis, ezért a beépített check letiltása és saját auth implementáció javasolt.
+- **Javítás**:
+  1. Ha a functionnek **kell** auth: ellenőrizd, hogy a hívásban tényleg van `Authorization: Bearer <token>` (Supabase kliens általában automatikusan adja).
+  2. Ha webhook/public endpoint vagy új kulcsmigráció miatt **nem** használható legacy JWT check:
+     - Kapcsold ki a built-in ellenőrzést function szinten:
+       ```toml
+       # supabase/config.toml
+       [functions.<fn>]
+       verify_jwt = false
+       ```
+       vagy deploy-nál:
+       ```bash
+       supabase functions deploy <fn> --no-verify-jwt
+       ```
+     - Implementálj auth-ot a functionben (pl. Supabase Auth `getClaims(token)` / vagy jose JWKS validáció template alapján).
+- **Megelőzés**:
+  - Checklist:
+    - [ ] Minden Edge Functionnél tudatos döntés: `verify_jwt` ON vagy OFF?
+    - [ ] Ha OFF: a function saját auth middleware-t tartalmaz (API key / JWT verify / signature verify)?
+    - [ ] 401 esetén első lépés: response body alapján eldönteni, hogy platform adta-e (legacy check), vagy a saját kód.
+
+- **Források**:
+  - https://supabase.com/docs/guides/troubleshooting/edge-function-401-error-response
+  - https://supabase.com/docs/guides/functions/function-configuration
+  - https://supabase.com/docs/guides/functions/deploy
+  - https://supabase.com/docs/guides/functions/auth
+  - https://supabase.com/docs/guides/api/api-keys
+
+### [HIBA-028] Service role / secret key véletlen kiexportálása a böngészőbe (NEXT_PUBLIC + bundle inline)
+- **Dátum**: 2026-03-31 (internetes gyűjtés)
+- **Fájl**: `.env*`, `next.config.*`, bármely kliens oldali (`"use client"`) komponens, illetve minden böngészőbe bundle-ölt kód
+- **Hibaüzenet**: Nincs „klasszikus” build error — a hiba általában security incident formájában derül ki. Tipikus jel: a kulcs megtalálható a böngésző bundle-ben / DevToolsban.
+- **Gyökérok**:
+  - Next.js-ben a `NEXT_PUBLIC_` prefixű env varok „beégetődnek” a kliens bundle-be `next build` során.
+  - A Supabase `service_role` / secret key teljes hozzáférést ad és BYPASSRLS-sel működik, ezért publikusan sosem kerülhet ki.
+- **Javítás**:
+  1. Soha ne használj `NEXT_PUBLIC_` prefixet sem `SERVICE_ROLE`, sem `SB_SECRET`, sem egyéb admin kulcs esetén.
+  2. Admin műveletek (pl. `supabase.auth.admin.*`, RLS bypass) kizárólag szerver-oldali környezetben (Edge Function, Server Action, backend) futhatnak.
+- **Megelőzés**:
+  - Checklist:
+    - [ ] Nincs `NEXT_PUBLIC_*` env varban admin/service_role/secret key?
+    - [ ] `service_role` / secret key csak szerveren használódik (Edge Functions / backend), sosem böngészőben?
+    - [ ] Build artifact ellenőrzés: grep a bundle-ben `sb_secret_` / `service_role` mintákra.
+
+- **Források**:
+  - https://nextjs.org/docs/pages/guides/environment-variables
+  - https://supabase.com/docs/guides/api/api-keys
+  - https://supabase.com/docs/guides/database/secure-data
+
+### [HIBA-029] SSR + token refresh + CDN cache: rossz token „kiszivárog” cache-elt `Set-Cookie` válaszon
+- **Dátum**: 2026-03-31 (internetes gyűjtés)
+- **Fájl**: `lib/supabase/*` (SSR kliens), proxy/middleware/session refresh réteg, CDN/hosting beállítások
+- **Hibaüzenet**: Ritka, de kritikus: másik felhasználó sessionével „bejelentkezett” állapot / össze-vissza auth állapotok, főleg CDN/ISR környezetben.
+- **Gyökérok**: Ha SSR közben session refresh történik, a frissített token `Set-Cookie` headerben megy ki. Ha ezt a választ CDN cache-eli (és másik usernek adja), a másik user böngészője eltárolja a rossz tokent → account mix-up.
+- **Javítás**:
+  1. `@supabase/ssr` használata esetén a `setAll` callbackből kapott cache headereket alkalmazd a response-on (a library v0.10.0+ automatikusan küldi a szükséges `Cache-Control/Expires/Pragma` headereket token refresh esetén).
+  2. Auth-kritikus route-ok legyenek cache-mentesek (CDN oldalon is): `Cache-Control: no-store` / `private` jellegű beállítások.
+  3. Page/route szinten kerüld az ISR-t ott, ahol `Set-Cookie` előfordulhat.
+- **Megelőzés**:
+  - Checklist:
+    - [ ] Session refresh válaszok **nem** cache-elődnek (CDN/ISR tiltva)?
+    - [ ] `@supabase/ssr` `setAll` cache headereit ténylegesen beállítod a response-on?
+    - [ ] Auth védelemhez a server oldalon `getClaims()` (nem `getSession()`) jellegű, validált megoldás van?
+
+- **Források**:
+  - https://supabase.com/docs/guides/auth/server-side/creating-a-client
+  - https://supabase.com/docs/guides/auth/server-side/advanced-guide
+
+
+
+
+
+### [HIBA-030] Venue finder keresőmező nincs összekötve a discovery state-tel
+- **Dátum**: 2026-03-31 (v1.3.4)
+- **Fájl**: `src/app/customer/page.tsx`, `src/components/PlaceAutocomplete.tsx`
+- **Hibaüzenet**: Funkcionális hiba — a felhasználó beírta a keresett várost/címet, de a "Keresés frissítése" gomb mégis üres queryvel futott le, ezért nem jöttek venue találatok.
+- **Gyökérok**: A `PlaceAutocomplete` belső lokális state-ben tartotta a beírt szöveget, miközben a parent `runDiscover()` a külön `query` state-et használta. A kettő nem volt összekötve, ezért a discovery lekérdezés nem azt a szöveget kapta, amit a user látott az inputban.
+- **Javítás**: A `PlaceAutocomplete` controlled input támogatást kapott (`value`, `onChange`, `onSubmit`), és a venue finder parent `query` state-jére lett kötve.
+- **Megelőzés**: Kereső inputnál **MINDIG** ellenőrizd, hogy ugyanazt a state-et látja-e a UI és a végrehajtott lekérdezés. Ha a parent indítja a keresést, az input értéke is parent-owned state legyen.
+
+### [HIBA-031] Redesign regresszió — a működő étlap entry point vizuálisan eltűnt
+- **Dátum**: 2026-03-31 (v1.3.4)
+- **Fájl**: `src/app/customer/page.tsx`
+- **Hibaüzenet**: Funkcionális regresszió — a digitális étlap technikailag megmaradt a venue oldalon, de a vendégoldalról eltűnt a jól látható belépési pont, ezért a user úgy érzékelte, hogy az étlap funkció megszűnt.
+- **Gyökérok**: A redesign túlzottan a venue discovery flow-ra helyezte a hangsúlyt, és közben a már működő, üzletileg kritikus `étlap` CTA nem maradt hangsúlyos. Ez sérti a legfontosabb szabályt: működő funkciót nem szabad regresszióval elrejteni.
+- **Javítás**: Visszakerült külön `Digitális étlap` CTA a főoldalra, a venue listakártyákra és a részletes helynézetbe.
+- **Megelőzés**: Redesign átadás előtt kötelező regressziós UX checklist: minden korábbi elsődleges CTA (`Étlap`, `Rendelés`, `QR`, `Foglalás`) továbbra is egyértelműen látható és legfeljebb 1-2 kattintással elérhető.
+
+---
+
+*Utoljára frissítve: 2026-03-31 — v1.3.4*
+*Ez egy FOLYAMATOSAN BŐVÜLŐ fájl. Új hibákat MINDIG appendelj, SOHA ne törölj!*

@@ -553,6 +553,21 @@ export default function CustomerPage() {
 
   const homeCards = [
     {
+      title: 'Digitális étlap megnyitása',
+      description: 'A működő étlap elérését visszatettük: nyisd meg közvetlenül a venue menüjét és rendelj onnan.',
+      action: () => {
+        if (selectedPlace?.venue_id) {
+          router.push(`/customer/pub/${selectedPlace.venue_id}`)
+          return
+        }
+        if (venues.length === 1) {
+          router.push(`/customer/pub/${venues[0].id}`)
+          return
+        }
+        setTab('discover')
+      },
+    },
+    {
       title: 'Asztali vagy pultos rendelés',
       description: 'Digitális étlap, QR belépés és élő státuszkövetés egy meneten belül.',
       action: () => router.push('/customer/scan'),
@@ -618,8 +633,15 @@ export default function CustomerPage() {
                 radiusKm={radiusKm}
                 latitude={position?.latitude}
                 longitude={position?.longitude}
+                value={query}
+                onChange={setQuery}
+                onSubmit={(searchQuery) => {
+                  setTab('discover')
+                  void runDiscover(searchQuery)
+                }}
                 onSelect={(place) => {
                   const normalized = normalizeExternalDisplay(place)
+                  setQuery(place.name)
                   setSelectedPlace(normalized)
                   setTab('discover')
                 }}
@@ -656,7 +678,7 @@ export default function CustomerPage() {
             <p className="mt-1 text-sm text-white/50">Minden fontos vendégművelet egyből kézre áll.</p>
           </div>
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {homeCards.map((item) => (
             <button key={item.title} onClick={item.action} className="quick-action-card p-5 text-left">
               <div className="mb-4 inline-flex rounded-2xl border border-white/10 bg-white/10 p-3 text-white">
@@ -754,8 +776,14 @@ export default function CustomerPage() {
                 radiusKm={radiusKm}
                 latitude={position?.latitude}
                 longitude={position?.longitude}
+                value={query}
+                onChange={setQuery}
+                onSubmit={(searchQuery) => {
+                  void runDiscover(searchQuery)
+                }}
                 onSelect={(place) => {
                   const normalized = normalizeExternalDisplay(place)
+                  setQuery(place.name)
                   setSelectedPlace(normalized)
                   setDiscoverPlaces((prev) => {
                     const existing = prev.find((row) => row.id === normalized.id)
@@ -801,16 +829,17 @@ export default function CustomerPage() {
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button onClick={() => runDiscover()} className="btn-kapakka w-auto px-5">
+            <button onClick={() => void runDiscover()} className="btn-kapakka w-auto px-5">
               <Search className="h-4 w-4" />
               Keresés frissítése
             </button>
-            <button onClick={() => requestLocation()} className="btn-outline w-auto px-5">
+            <button onClick={() => void requestLocation()} className="btn-outline w-auto px-5">
               <MapPin className="h-4 w-4" />
               Helyzet frissítése
             </button>
             <span className="text-sm text-white/45">{locationStatus}</span>
           </div>
+          <p className="text-sm text-white/35">A kereső a beírt nevet vagy címet is felhasználja, és a Kapakka venue-khez külön étlap gombot is mutat.</p>
         </div>
       </div>
 

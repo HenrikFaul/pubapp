@@ -4,12 +4,17 @@ Minden változtatás dátummal és leírással.
 
 ---
 
-## [1.3.3] — 2026-03-31
+## [1.3.4] — 2026-03-31
 
 ### 🐛 Hibajavítások
-- Next.js build javítás: a root `tsconfig.json` már kizárja a `supabase/functions/**/*` útvonalat, így a Deno runtime-os Supabase Edge Functionök nem akadnak össze a Next/Node typecheckkel
-- `place-search` edge function fájlba explicit `Deno` deklaráció került a runtime-szándék egyértelműsítésére és az editor/typecheck stabilizálására
-- `codingLessonsLearnt.md` bővítve a Deno-vs-Next build hiba mintájával és a kötelező megelőzési lépésekkel
+- Venue finder keresőmező újra össze lett kötve a szülő state-tel, így a beírt név / cím ténylegesen bekerül a discovery lekérdezésbe
+- `PlaceAutocomplete` most már controlled módban is működik, Enterrel is indítható keresés
+- A `place-search` helper kezeli az Edge Function hiba payloadot is, és `places_cache` fallbacket használ
+- A `place-search` Edge Function geokódolási fallbacket kapott, így város / cím alapú keresésből is venue lista képezhető
+- Visszakerült a jól látható **digitális étlap** entry point a vendég felületre: külön étlap CTA a főoldalon, a venue listában és a hely részletes nézetében
+
+### 🛡️ Regresszió megelőzés
+- A `codingLessonsLearnt.md` tetejére bekerült az elsődleges szabály: **legfontosabb, hogy semmilyen működő funkciót ne ronts el**
 
 ---
 
