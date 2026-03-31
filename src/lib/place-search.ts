@@ -97,7 +97,7 @@ async function searchCachedPlaces(params: PlaceSearchParams): Promise<ExternalPl
   return rows.map((row: any) => normalizeExternalPlace(row)).filter((row: ExternalPlace) => Boolean(row.external_id))
 }
 
-async function invokePlaceSearch(body: Record<string, unknown>) {
+async function invokePlaceSearch(body: Record<string, unknown>): Promise<{ rows: ExternalPlace[]; error: string | null }> {
   const { data, error } = await supabase.functions.invoke('place-search', { body })
   if (error) return { rows: [] as ExternalPlace[], error: error.message }
 
@@ -112,8 +112,10 @@ async function invokePlaceSearch(body: Record<string, unknown>) {
       : []
 
   const normalizedRows: ExternalPlace[] = rows.map((row: any) => normalizeExternalPlace(row))
-  const filteredRows: ExternalPlace[] = normalizedRows.filter((row: ExternalPlace) => Boolean(row.external_id))
-  return { rows: filteredRows, error: null as string | null }
+  // Only filter out rows missing external_id — do NOT apply additional text filtering here.
+  // The edge function already applies score-based relevance filtering.
+  const validRows: ExternalPlace[] = normalizedRows.filter((row: ExternalPlace) => Boolean(row.external_id))
+  return { rows: validRows, error: null }
 }
 
 export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalPlace[]> {
@@ -127,12 +129,22 @@ export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalP
     limit: params.limit ?? 24,
   }
 
+  // Primary: full search with all params
   const primary = await invokePlaceSearch(payload)
   if (primary.rows.length > 0) return primary.rows
 
-  // Broader retry if category/openNow combination is too restrictive.
-  if ((params.query || '').trim()) {
-    const fallback = await invokePlaceSearch({
+  // Fallback 1: drop the open_now constraint if it was active
+  if (params.openNow) {
+    const fallbackOpenNow = await invokePlaceSearch({
+      ...payload,
+      open_now: false,
+    })
+    if (fallbackOpenNow.rows.length > 0) return fallbackOpenNow.rows
+  }
+
+  // Fallback 2: drop the category constraint if there was one
+  if ((params.query || '').trim() && params.category) {
+    const fallbackNoCategory = await invokePlaceSearch({
       query: params.query || '',
       latitude: params.latitude,
       longitude: params.longitude,
@@ -140,9 +152,22 @@ export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalP
       open_now: false,
       limit: params.limit ?? 24,
     })
-    if (fallback.rows.length > 0) return fallback.rows
+    if (fallbackNoCategory.rows.length > 0) return fallbackNoCategory.rows
   }
 
+  // Fallback 3: drop coordinates (query-only, let edge function geocode)
+  if ((params.query || '').trim() && (params.latitude || params.longitude)) {
+    const fallbackNoCoords = await invokePlaceSearch({
+      query: params.query || '',
+      category: params.category || '',
+      radius_km: params.radiusKm ?? 10,
+      open_now: false,
+      limit: params.limit ?? 24,
+    })
+    if (fallbackNoCoords.rows.length > 0) return fallbackNoCoords.rows
+  }
+
+  // Last resort: local places_cache table
   const cached = await searchCachedPlaces(params)
   return cached
 }
