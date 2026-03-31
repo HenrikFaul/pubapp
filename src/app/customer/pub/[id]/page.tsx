@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
 import { copyText, DAY_NAMES, formatPrice, isOpenNow } from '@/lib/utils'
@@ -13,6 +13,7 @@ type PaymentMethod = 'cash' | 'card'
 
 export default function VenuePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { id } = useParams() as { id: string }
   const [venue, setVenue] = useState<Venue | null>(null)
   const [categories, setCategories] = useState<MenuCategory[]>([])
@@ -57,6 +58,23 @@ export default function VenuePage() {
     setItems((itemRows || []) as MenuItem[])
     setActiveCat(categoryRows?.[0]?.id || null)
 
+    const tableFromQuery = searchParams.get('table')
+    if (tableFromQuery) {
+      setTableNum(tableFromQuery)
+      setOrderType('table_service')
+    }
+
+    if (typeof window !== 'undefined' && venueRow?.id && venueRow?.name) {
+      window.localStorage.setItem(
+        'kapakka_checked_in_context',
+        JSON.stringify({
+          venueId: venueRow.id,
+          venueName: venueRow.name,
+          tableNumber: tableFromQuery || undefined,
+        })
+      )
+    }
+
     const user = auth.data.user
     if (user?.id) {
       const [{ data: profileRow }, { data: favoriteRow }] = await Promise.all([
@@ -74,7 +92,7 @@ export default function VenuePage() {
     }
 
     setLoading(false)
-  }, [id])
+  }, [id, searchParams])
 
   useEffect(() => {
     load()
@@ -121,6 +139,17 @@ export default function VenuePage() {
         .eq('number', Number(tableNum))
         .maybeSingle()
       tableId = table?.id
+    }
+
+    if (typeof window !== 'undefined' && venue?.id && venue?.name) {
+      window.localStorage.setItem(
+        'kapakka_checked_in_context',
+        JSON.stringify({
+          venueId: venue.id,
+          venueName: venue.name,
+          tableNumber: tableNum.trim() || undefined,
+        })
+      )
     }
 
     const orderPayload = {

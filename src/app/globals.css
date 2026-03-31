@@ -417,6 +417,15 @@ textarea {
 select::placeholder,
 textarea::placeholder { color: var(--admin-subtle); }
 
+
+.kap-input option,
+.kap-input-dark option,
+.input option,
+select option {
+  background: color-mix(in srgb, var(--customer-panel-strong) 92%, black 8%);
+  color: var(--customer-text);
+}
+
 .kap-input:focus,
 .kap-input-dark:focus,
 .input:focus,

@@ -68,6 +68,13 @@ interface DisplayPlace {
   metadata?: Record<string, unknown>
 }
 
+
+
+interface CheckedInContext {
+  venueId: string
+  venueName: string
+  tableNumber?: string
+}
 const CATEGORY_OPTIONS: Array<{ value: PlaceCategory; label: string }> = [
   { value: 'pub', label: 'Pub' },
   { value: 'bar', label: 'Bár' },
@@ -185,6 +192,7 @@ export default function CustomerPage() {
   const [friendInviteEmail, setFriendInviteEmail] = useState('')
   const [newListTitle, setNewListTitle] = useState('')
   const [listCollaboratorId, setListCollaboratorId] = useState('')
+  const [checkedInContext, setCheckedInContext] = useState<CheckedInContext | null>(null)
 
   const acceptedFriends = useMemo(
     () => friendships.filter((row) => row.status === 'accepted'),
@@ -196,6 +204,7 @@ export default function CustomerPage() {
   )
   const favoriteCount = favorites.length
   const liveOrder = orders.find((order) => ['pending', 'accepted', 'preparing', 'ready'].includes(order.status))
+
 
   const requestLocation = useCallback(async () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -317,6 +326,21 @@ export default function CustomerPage() {
     init()
   }, [init])
 
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const raw = window.localStorage.getItem('kapakka_checked_in_context')
+      if (!raw) return
+      const parsed = JSON.parse(raw) as CheckedInContext
+      if (parsed?.venueId && parsed?.venueName) {
+        setCheckedInContext(parsed)
+      }
+    } catch {
+      // ignore malformed local context
+    }
+  }, [])
+
   const runDiscover = useCallback(
     async (explicitQuery?: string) => {
       setDiscoverLoading(true)
@@ -355,7 +379,15 @@ export default function CustomerPage() {
 
       const merged = Array.from(deduped.values()).sort(sortPlaces)
       setDiscoverPlaces(merged)
-      if (merged.length > 0 && !selectedPlace) setSelectedPlace(merged[0])
+      if (merged.length > 0) {
+        setSelectedPlace((current) => {
+          if (!current) return merged[0]
+          const stillVisible = merged.find((place) => place.id === current.id)
+          return stillVisible || merged[0]
+        })
+      } else {
+        setSelectedPlace(null)
+      }
       if (merged.length === 0) {
         toast('Nem találtam helyet ezekkel a szűrőkkel.')
       }
@@ -553,26 +585,6 @@ export default function CustomerPage() {
 
   const homeCards = [
     {
-      title: 'Digitális étlap megnyitása',
-      description: 'A működő étlap elérését visszatettük: nyisd meg közvetlenül a venue menüjét és rendelj onnan.',
-      action: () => {
-        if (selectedPlace?.venue_id) {
-          router.push(`/customer/pub/${selectedPlace.venue_id}`)
-          return
-        }
-        if (venues.length === 1) {
-          router.push(`/customer/pub/${venues[0].id}`)
-          return
-        }
-        setTab('discover')
-      },
-    },
-    {
-      title: 'Asztali vagy pultos rendelés',
-      description: 'Digitális étlap, QR belépés és élő státuszkövetés egy meneten belül.',
-      action: () => router.push('/customer/scan'),
-    },
-    {
       title: 'Közelben lévő helyek',
       description: 'TomTom + Geoapify discovery kategóriával, nyitvatartással és távolságszűrővel.',
       action: () => setTab('discover'),
@@ -583,6 +595,22 @@ export default function CustomerPage() {
       action: () => setTab('social'),
     },
   ]
+
+  const activeVenueCards = checkedInContext
+    ? [
+        {
+          title: 'Digitális étlap megnyitása',
+          description: `${checkedInContext.venueName}${checkedInContext.tableNumber ? ` · Asztal ${checkedInContext.tableNumber}` : ''} — nyisd meg a venue menüjét és rendelj onnan.`,
+          action: () => router.push(`/customer/pub/${checkedInContext.venueId}${checkedInContext.tableNumber ? `?table=${checkedInContext.tableNumber}` : ''}`),
+        },
+        {
+          title: 'Asztali vagy pultos rendelés',
+          description: 'Digitális étlap, QR belépés és élő státuszkövetés a becsekkolt venue-ra.',
+          action: () => router.push(`/customer/pub/${checkedInContext.venueId}${checkedInContext.tableNumber ? `?table=${checkedInContext.tableNumber}` : ''}`),
+        },
+      ]
+    : []
+
 
   const selectedIsFavorite = selectedPlace
     ? favorites.some((favorite) => favoriteMatches(favorite, selectedPlace))
@@ -670,6 +698,50 @@ export default function CustomerPage() {
           </div>
         </div>
       </section>
+
+      {checkedInContext && (
+        <section className="feature-card p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="section-kicker mb-3">
+                <ShoppingBag className="h-4 w-4" />
+                aktív venue kontextus
+              </div>
+              <h3 className="text-2xl font-bold text-white">Jelenleg itt vagy becsekkolva: {checkedInContext.venueName}</h3>
+              <p className="mt-2 text-sm text-white/55">
+                {checkedInContext.tableNumber ? `Asztal ${checkedInContext.tableNumber} · ` : ''}a gyors étlap- és rendeléscsempék csak aktív venue kontextusnál jelennek meg.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.localStorage.removeItem('kapakka_checked_in_context')
+                }
+                setCheckedInContext(null)
+              }}
+              className="btn-outline w-auto px-5"
+            >
+              Aktív venue törlése
+            </button>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {activeVenueCards.map((item) => (
+              <button key={item.title} onClick={item.action} className="quick-action-card p-5 text-left">
+                <div className="mb-4 inline-flex rounded-2xl border border-white/10 bg-white/10 p-3 text-white">
+                  <ShoppingBag className="h-5 w-5" />
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <p className="font-semibold text-white">{item.title}</p>
+                    <p className="mt-1 text-sm text-white/50">{item.description}</p>
+                  </div>
+                  <ChevronRight className="mt-0.5 h-5 w-5 flex-shrink-0 text-white/30" />
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section>
         <div className="mb-4 flex items-end justify-between gap-4">
@@ -1180,16 +1252,15 @@ export default function CustomerPage() {
       </div>
 
       <div className="grid gap-3 xl:grid-cols-3">
-        <button onClick={() => setTab('discover')} className="profile-option-card p-5 text-left">
+        <div className="profile-option-card p-5 text-left">
           <div className="flex items-start gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/10 p-3 text-white"><Store className="h-5 w-5" /></div>
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-3 text-white"><Star className="h-5 w-5" /></div>
             <div className="flex-1">
-              <p className="font-semibold text-white">Venue finder</p>
-              <p className="mt-1 text-sm text-white/50">Nyitva most, közelség és kategória szerinti szűrés.</p>
+              <p className="font-semibold text-white">Hűségpontok</p>
+              <p className="mt-1 text-sm text-white/50">A profilban maradnak fókuszban: {profile?.loyalty_points || 0} pont áll rendelkezésedre.</p>
             </div>
-            <ChevronRight className="h-5 w-5 text-white/30" />
           </div>
-        </button>
+        </div>
         <button onClick={() => setTab('social')} className="profile-option-card p-5 text-left">
           <div className="flex items-start gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/10 p-3 text-white"><Users className="h-5 w-5" /></div>
@@ -1210,6 +1281,16 @@ export default function CustomerPage() {
             <ChevronRight className="h-5 w-5 text-white/30" />
           </div>
         </button>
+      </div>
+
+      <div className="feature-card p-5">
+        <div className="flex items-start gap-3">
+          <div className="rounded-2xl border border-white/10 bg-white/10 p-3 text-white"><Sparkles className="h-5 w-5" /></div>
+          <div>
+            <p className="font-semibold text-white">Egyéni ajánlataim</p>
+            <p className="mt-1 text-sm text-white/50">A venue-k személyes akciói és ajánlatai ide kerülhetnek. Jelenleg még nincs személyre szabott ajánlatod.</p>
+          </div>
+        </div>
       </div>
 
       <button onClick={logout} className="btn-outline border-red-500/30 text-red-300 hover:bg-red-500/10 hover:text-red-200">
@@ -1303,11 +1384,11 @@ export default function CustomerPage() {
           </button>
         </div>
 
-        {tab === 'home' && <HomeContent />}
-        {tab === 'discover' && <DiscoverContent />}
-        {tab === 'social' && <SocialContent />}
-        {tab === 'orders' && <OrdersContent />}
-        {tab === 'profile' && <ProfileContent />}
+        {tab === 'home' && HomeContent()}
+        {tab === 'discover' && DiscoverContent()}
+        {tab === 'social' && SocialContent()}
+        {tab === 'orders' && OrdersContent()}
+        {tab === 'profile' && ProfileContent()}
       </div>
 
       <nav className="mobile-tabbar lg:hidden">

@@ -83,7 +83,9 @@ export default function PlaceAutocomplete({
         </span>
         <input
           value={query}
+          autoComplete="off"
           onFocus={() => setOpen(true)}
+          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
           onChange={(event) => updateQuery(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && query.trim().length >= 2) {
@@ -121,6 +123,7 @@ export default function PlaceAutocomplete({
                 <button
                   key={`${place.provider}-${place.external_id}`}
                   type="button"
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
                     onSelect(place)
                     updateQuery(place.name)

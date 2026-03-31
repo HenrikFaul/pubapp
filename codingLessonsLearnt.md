@@ -1,3 +1,5 @@
+# LEGFONTOSABB SZABÁLY: semmilyen működő funkciót ne ronts el.
+
 # codingLessonsLearnt.md — Kapakka PubApp
 
 ## ⚠️ UTASÍTÁSOK (MINDIG OLVASD EL ELŐSZÖR!)
@@ -421,26 +423,28 @@
   - https://supabase.com/docs/guides/auth/server-side/advanced-guide
 
 
+## ➕ APPEND — 2026-03-31 regressziók és UX működési hibák
 
+### [HIBA-030] Inline komponensdefiníció JSX-ként renderelve fókuszvesztést okoz kontrollált inputoknál
+- **Dátum**: 2026-03-31
+- **Fájl**: `src/app/page.tsx`, `src/app/customer/page.tsx`
+- **Hibaüzenet**: Nem klasszikus build error, hanem működési regresszió: a user csak 1 karaktert tud beírni, utána a mező elveszti a fókuszt és újra bele kell kattintani.
+- **Gyökérok**: A komponensen belül definiált `AuthFrame`, `GoogleButton`, `Divider`, illetve `HomeContent`, `DiscoverContent`, `ProfileContent` stb. JSX komponensként (`<AuthFrame />`, `<HomeContent />`) lettek renderelve. Mivel minden parent rendernél új függvényreferencia jött létre, React új komponens-típusként kezelte őket, ezért az al-fa unmount/remount történt, ami fókuszvesztést okozott minden state változáskor.
+- **Javítás**: Az inline helper-eket nem JSX komponensként, hanem közvetlen renderfüggvényként kell használni (`AuthFrame({...})`, `HomeContent()`). Így az elemtree ugyanabban a parent fában marad és nem veszti el a fókuszt minden billentyűleütésnél.
+- **Megelőzés**: **SOHA** ne renderelj komponensen belül definiált helper függvényt `<CapitalizedComponent />` formában, ha az adott nézetben kontrollált inputok vannak. Vagy vidd ki a komponenst module scope-ba, vagy hívd renderfüggvényként.
 
+### [HIBA-031] Redesign közben a működő feature belépési pontját nem elég technikailag megtartani — láthatónak is kell maradnia
+- **Dátum**: 2026-03-31
+- **Fájl**: `src/app/customer/page.tsx`, `src/app/admin/layout.tsx`
+- **Hibaüzenet**: Funkcionális regresszió / UX regresszió: az étlap technikailag létezett, de a gyors belépési pont eltűnt a főoldalról és az admin oldali fő navigációból.
+- **Gyökérok**: A redesign során a vizuális egyszerűsítés felülírta az üzleti logikát. A user számára a feature már nem volt evidensen elérhető, ezért gyakorlatilag úgy tűnt, mintha megszűnt volna.
+- **Javítás**: Az étlap és rendelés gyorselérés csak aktív venue / becsekkolt kontextus mellett jelenik meg, az admin oldali fő navigációba pedig visszakerül az `Étlap` menüpont.
+- **Megelőzés**: Redesign előtt és után **MINDIG** készíts feature-entry checklistet: melyik működő funkció honnan érhető el, és a patch után is ugyanilyen vagy jobb láthatósággal megmaradt-e.
 
-### [HIBA-030] Venue finder keresőmező nincs összekötve a discovery state-tel
-- **Dátum**: 2026-03-31 (v1.3.4)
-- **Fájl**: `src/app/customer/page.tsx`, `src/components/PlaceAutocomplete.tsx`
-- **Hibaüzenet**: Funkcionális hiba — a felhasználó beírta a keresett várost/címet, de a "Keresés frissítése" gomb mégis üres queryvel futott le, ezért nem jöttek venue találatok.
-- **Gyökérok**: A `PlaceAutocomplete` belső lokális state-ben tartotta a beírt szöveget, miközben a parent `runDiscover()` a külön `query` state-et használta. A kettő nem volt összekötve, ezért a discovery lekérdezés nem azt a szöveget kapta, amit a user látott az inputban.
-- **Javítás**: A `PlaceAutocomplete` controlled input támogatást kapott (`value`, `onChange`, `onSubmit`), és a venue finder parent `query` state-jére lett kötve.
-- **Megelőzés**: Kereső inputnál **MINDIG** ellenőrizd, hogy ugyanazt a state-et látja-e a UI és a végrehajtott lekérdezés. Ha a parent indítja a keresést, az input értéke is parent-owned state legyen.
-
-### [HIBA-031] Redesign regresszió — a működő étlap entry point vizuálisan eltűnt
-- **Dátum**: 2026-03-31 (v1.3.4)
-- **Fájl**: `src/app/customer/page.tsx`
-- **Hibaüzenet**: Funkcionális regresszió — a digitális étlap technikailag megmaradt a venue oldalon, de a vendégoldalról eltűnt a jól látható belépési pont, ezért a user úgy érzékelte, hogy az étlap funkció megszűnt.
-- **Gyökérok**: A redesign túlzottan a venue discovery flow-ra helyezte a hangsúlyt, és közben a már működő, üzletileg kritikus `étlap` CTA nem maradt hangsúlyos. Ez sérti a legfontosabb szabályt: működő funkciót nem szabad regresszióval elrejteni.
-- **Javítás**: Visszakerült külön `Digitális étlap` CTA a főoldalra, a venue listakártyákra és a részletes helynézetbe.
-- **Megelőzés**: Redesign átadás előtt kötelező regressziós UX checklist: minden korábbi elsődleges CTA (`Étlap`, `Rendelés`, `QR`, `Foglalás`) továbbra is egyértelműen látható és legfeljebb 1-2 kattintással elérhető.
-
----
-
-*Utoljára frissítve: 2026-03-31 — v1.3.4*
-*Ez egy FOLYAMATOSAN BŐVÜLŐ fájl. Új hibákat MINDIG appendelj, SOHA ne törölj!*
+### [HIBA-032] Themed select inputnál a natív option lista olvashatatlanná válhat
+- **Dátum**: 2026-03-31
+- **Fájl**: `src/app/globals.css`
+- **Hibaüzenet**: Nem build error, hanem UI hiba: a legördülő lista opciói fehér háttéren fehér vagy nagyon halvány szöveggel jelennek meg.
+- **Gyökérok**: A dark themed `select` mező örökölte a világos natív option hátteret, miközben a szövegszín theme-ből maradt, ezért a lista olvashatatlanná vált.
+- **Javítás**: Explicit `option` háttér- és szövegszínt kell adni a themed `select` mezőknek.
+- **Megelőzés**: **MINDIG** ellenőrizd a natív `select > option` megjelenést Windows/Chrome környezetben is, nem csak a zárt input mezőt.

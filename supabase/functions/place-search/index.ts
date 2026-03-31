@@ -204,9 +204,10 @@ Deno.serve(async (request) => {
       resolvedCenter && tomtomKey ? searchTomTom({ ...body, limit, latitude: resolvedCenter.latitude, longitude: resolvedCenter.longitude }, tomtomKey, resolvedCenter) : Promise.resolve([]),
     ])
 
-    let merged = dedupe([...geoTextResults, ...tomtomTextResults, ...geoNearbyResults, ...tomtomNearbyResults])
-      .filter((row) => textMatchesQuery(row, trimmedQuery))
-      .map((row) => ({
+    const directTextMatches = [...geoTextResults, ...tomtomTextResults].filter((row) => textMatchesQuery(row, trimmedQuery))
+    const nearbyMatches = [...geoNearbyResults, ...tomtomNearbyResults]
+
+    let merged = dedupe([...directTextMatches, ...nearbyMatches]).map((row) => ({
         ...row,
         distance_km:
           typeof row.distance_km === 'number'
