@@ -1,3 +1,4 @@
+
 import { supabase } from '@/lib/supabase'
 
 export interface PlaceSearchParams {
@@ -98,20 +99,10 @@ async function searchCachedPlaces(params: PlaceSearchParams): Promise<ExternalPl
 
 async function invokePlaceSearch(body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke('place-search', { body })
-  if (error) {
-    return {
-      rows: [] as ExternalPlace[],
-      error: error.message,
-      debug: null as Record<string, unknown> | null,
-    }
-  }
+  if (error) return { rows: [] as ExternalPlace[], error: error.message }
 
   if (data && typeof data === 'object' && typeof (data as { error?: unknown }).error === 'string') {
-    return {
-      rows: [] as ExternalPlace[],
-      error: String((data as { error: string }).error),
-      debug: data as Record<string, unknown>,
-    }
+    return { rows: [] as ExternalPlace[], error: String((data as { error: string }).error) }
   }
 
   const rows: any[] = Array.isArray(data?.results)
@@ -122,13 +113,7 @@ async function invokePlaceSearch(body: Record<string, unknown>) {
 
   const normalizedRows: ExternalPlace[] = rows.map((row: any) => normalizeExternalPlace(row))
   const filteredRows: ExternalPlace[] = normalizedRows.filter((row: ExternalPlace) => Boolean(row.external_id))
-  const debug = typeof data === 'object' && data ? ((data as Record<string, unknown>).debug as Record<string, unknown> | undefined) : undefined
-
-  return {
-    rows: filteredRows,
-    error: null as string | null,
-    debug: debug || null,
-  }
+  return { rows: filteredRows, error: null as string | null }
 }
 
 export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalPlace[]> {
@@ -145,30 +130,19 @@ export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalP
   const primary = await invokePlaceSearch(payload)
   if (primary.rows.length > 0) return primary.rows
 
-  const rawCandidateCount = Number(primary.debug?.raw_candidate_count || 0)
-  const hadProviderResponse = rawCandidateCount > 0 || Number(primary.debug?.provider_hits || 0) > 0
-
-  if (hadProviderResponse || (params.query || '').trim()) {
+  // Broader retry if category/openNow combination is too restrictive.
+  if ((params.query || '').trim()) {
     const fallback = await invokePlaceSearch({
       query: params.query || '',
-      category: params.category || '',
       latitude: params.latitude,
       longitude: params.longitude,
-      radius_km: Math.max(params.radiusKm ?? 10, 15),
+      radius_km: params.radiusKm ?? 10,
       open_now: false,
       limit: params.limit ?? 24,
-      lenient: true,
     })
     if (fallback.rows.length > 0) return fallback.rows
   }
 
   const cached = await searchCachedPlaces(params)
-  if (cached.length > 0) return cached
-
-  if (params.query?.trim() && params.category) {
-    const broaderCache = await searchCachedPlaces({ ...params, category: undefined, openNow: false })
-    if (broaderCache.length > 0) return broaderCache
-  }
-
-  return []
+  return cached
 }

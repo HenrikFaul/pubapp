@@ -1,21 +1,6 @@
 # LEGFONTOSABB: SEMMILYEN MÁR JÓL MŰKÖDŐ FUNKCIÓT NEM SZABAD ELRONTANI.
 
-## 🔁 KÖTELEZŐ FEJLESZTÉSI MÓDSZERTAN (MINDEN ÚJ HIBA / REQUIREMENT ELŐTT)
-
-**Kötelező indító prompt minden jövőbeli fejlesztéshez:**
-
-> Olvasd be a `codingLessonsLearnt.md` és `changelog.md` fájlokat. A cél: **semmilyen már jól működő funkciót nem szabad elrontani**. Az újonnan megfogalmazott üzleti követelmény vagy hibajavítás érdekében először gyűjtsd össze az internetes / hivatalos dokumentációs tudást, ami a probléma detektálásához és a helyes megoldáshoz kell. Ezután detektáld a gyökérokot a kódban, készíts több megoldási koncepciót, végezz célzott teszteket a koncepciókra, és a leghatékonyabb, regressziószempontból legbiztonságosabb megoldást szállítsd. A fejlesztés végén checklist alapján ellenőrizd, hogy minden kérés teljesült, és hogy a korábbi hibaminták nem kerültek vissza.
-
-**Kötelező lépések:**
-1. `codingLessonsLearnt.md` és `changelog.md` elolvasása
-2. Hivatalos webes / dokumentációs tudás összegyűjtése a problémáról
-3. Gyökérok detektálása a kódban
-4. Legalább 2 megoldási koncepció felállítása
-5. Célzott teszt vagy szimuláció a koncepciókra
-6. A legbiztonságosabb megoldás implementálása
-7. Regresszióellenőrzés checklist alapján
-8. `codingLessonsLearnt.md` és `changelog.md` frissítése
-9. Versioning fájlpár generálása (`PDF` + `MD`)
+# codingLessonsLearnt.md — Kapakka PubApp
 
 ## ⚠️ UTASÍTÁSOK (MINDIG OLVASD EL ELŐSZÖR!)
 
@@ -217,14 +202,3 @@
 - **Megelőzés**: Automatikusan futó search/filter flow-ban **SOHA** ne legyen toastszintű „nincs találat” üzenet. Az ilyen állapotot inline empty state-ként kell kezelni.
 
 *Appendelve: 2026-03-31 — v1.3.6*
-
-
-### [HIBA-034] Venue finder nullára szűrte a provider találatokat a function végén
-- **Dátum**: 2026-03-31 (v1.3.9)
-- **Fájl**: `supabase/functions/place-search/index.ts`, `src/lib/place-search.ts`
-- **Hibaüzenet**: Futás közben a TomTom / Geoapify provider kérések ellenére a venue finder gyakran 0 találatot adott vissza (`Nincs találat`), különösen városnév vagy cím alapú keresésnél.
-- **Gyökérok**: Két kombinált probléma volt:
-  1. A Geoapify Places API lekérés a jelenlegi implementációban `text=` paraméterre épült, miközben a Places API hivatalos, dokumentált név-alapú POI szűrője a `name` paraméter. Emiatt a query-ág gyengén vagy kiszámíthatatlanul működött.
-  2. A provider találatok összefésülése után a function végén egy kemény `textMatchesQuery()` filter újra nullára szűrhette a már megtalált közeli venue-ket is. Ha emiatt a lista üres lett, a kliens csak cache-fallbacket látott, ami első használatkor üres lehetett.
-- **Javítás**: A keresési logika kétlépcsősre lett alakítva: előbb geocode / center feloldás query-variánsokkal, majd külön by-name és nearby POI lekérés. A végső szűrés hard filter helyett score + lenient fallback logikára váltott. A kliens `searchPlaces()` helper debug-safe retry/fallback lépcsőt kapott.
-- **Megelőzés**: Provider API integrációnál **MINDIG** az adott szolgáltató hivatalos paramétereit kell követni, és a provider által már visszaadott találatokat nem szabad egy második, túl agresszív kliens-specifikus szűréssel lenullázni. Search pipeline-nál kötelező külön ellenőrizni: provider hits > merged results > UI results.
