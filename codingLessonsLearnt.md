@@ -202,3 +202,25 @@
 - **Megelőzés**: Automatikusan futó search/filter flow-ban **SOHA** ne legyen toastszintű „nincs találat” üzenet. Az ilyen állapotot inline empty state-ként kell kezelni.
 
 *Appendelve: 2026-03-31 — v1.3.6*
+
+
+## ➕ APPEND — 2026-03-31 folyamatkövetési szabály
+
+### [HIBA-034] Fejlesztés előtti üzleti összefoglaló és promptfájl hiánya → pontatlan megvalósítás / regressziós kockázat
+- **Dátum**: 2026-03-31 (v1.3.7)
+- **Fájl**: `changelog.md`, `versioning/*`, teljes fejlesztési folyamat
+- **Hibaüzenet**: Nincs klasszikus build error — a probléma folyamat- és követelménykezelési: dokumentált előkészítés nélkül a fejlesztés félreérthetővé és regresszióveszélyessé válik.
+- **Gyökérok**: A fejlesztés megkezdése előtt nem készült külön, verziózott üzleti kérés-összefoglaló és AI promptfájl, ezért a requirement értelmezése, a scope és a megőrzendő funkciók köre nem volt kellően formalizált.
+- **Javítás**: Kötelező folyamat bevezetése: minden fejlesztés előtt el kell olvasni a `changelog.md` és `codingLessonsLearnt.md` fájlokat, majd létre kell hozni egy PDF összefoglalót és egy MD promptfájlt közös 8 jegyű azonosítóval a `versioning/` mappába. A changelog ezekre hivatkozik.
+- **Megelőzés**: **MINDIG** kövesd ezt a sorrendet: 1) changelog beolvasása, 2) codingLessonsLearnt beolvasása, 3) PDF üzleti összefoglaló, 4) MD promptfájl, 5) changelog hivatkozások és checklist, 6) csak ezután fejlesztés.
+
+## 📋 KIEGÉSZÍTŐ CHECKLISTA — verziózott előkészítés minden fejlesztéshez
+
+- [ ] A fejlesztés előtt elolvastam a `changelog.md` fájlt.
+- [ ] A fejlesztés előtt elolvastam a `codingLessonsLearnt.md` fájlt.
+- [ ] A kérést saját szavaimmal összefoglaltam.
+- [ ] Létrehoztam az új PDF üzleti kérés-összefoglalót.
+- [ ] Létrehoztam az új MD AI promptfájlt.
+- [ ] A két fájl ugyanazzal a 8 jegyű azonosítóval került a `versioning/` mappába.
+- [ ] A changelog frissült a két új fájl hivatkozásával.
+- [ ] Fejlesztés végén visszaellenőriztem, hogy korábbi működő funkció nem sérült.

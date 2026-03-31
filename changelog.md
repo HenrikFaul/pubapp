@@ -2,7 +2,44 @@
 
 Minden változtatás dátummal és leírással.
 
+
+
 ---
+
+## [1.3.7] — 2026-03-31
+
+### 📘 Folyamat- és verziózáskövetési követelmény bevezetése
+- Minden fejlesztés előtt kötelező a `changelog.md` és a `codingLessonsLearnt.md` teljes beolvasása.
+- Minden fejlesztéshez kötelezően létre kell jönnie egy új PDF üzleti kérés összefoglalónak és egy kapcsolódó MD promptfájlnak.
+- A két fájlt közös, 8 jegyű azonosító kapcsolja össze, amely tartalmazza a verziószámot is.
+- A fájlok a `versioning/` mappába kerülnek, mindig új példányként.
+- A changelognak a továbbiakban hivatkoznia kell a kapcsolódó versioning fájlokra.
+
+### 🔗 Kapcsolódó versioning fájlok
+- PDF: `versioning/13748321_v1.3.7_business_request_summary.pdf`
+- MD: `versioning/13748321_v1.3.7_ai_dev_prompts.md`
+
+### ✅ Pre-flight checklist
+- [ ] `changelog.md` elolvasva
+- [ ] `codingLessonsLearnt.md` elolvasva
+- [ ] a megőrzendő működő funkciók azonosítva
+- [ ] új PDF üzleti kérés-összefoglaló létrehozva
+- [ ] új MD AI promptfájl létrehozva
+- [ ] közös 8 jegyű azonosító hozzárendelve
+
+### 🛠️ Fejlesztési checklist
+- [ ] a kérés többszöri átolvasással értelmezve
+- [ ] a feladat saját szavas összefoglalása elkészítve
+- [ ] csak a szükséges fájlok módosítva
+- [ ] működő funkció nem lett törölve vagy regresszióval elrontva
+- [ ] a coding lessons fájlban jelzett hibaminták elkerülve
+
+### 🔍 Fejlesztés végi ellenőrző lista
+- [ ] minden fejlesztési és javítási kérés teljesítve
+- [ ] korábbi funkciók megléte visszaellenőrizve
+- [ ] versioning dokumentumpár a repóban elérhető
+- [ ] changelog a versioning fájlokra hivatkozik
+
 
 ## [1.1.0] — 2026-03-30
 

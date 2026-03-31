@@ -1,11 +1,4 @@
-PATCH_FILE_LIST.txt
 changelog.md
 codingLessonsLearnt.md
-src/app/admin/layout.tsx
-src/app/customer/page.tsx
-src/app/customer/pub/[id]/page.tsx
-src/app/customer/scan/page.tsx
-src/app/page.tsx
-src/components/PlaceAutocomplete.tsx
-src/lib/place-search.ts
-supabase/functions/place-search/index.ts
+versioning/13748321_v1.3.7_business_request_summary.pdf
+versioning/13748321_v1.3.7_ai_dev_prompts.md
