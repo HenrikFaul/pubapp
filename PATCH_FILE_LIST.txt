@@ -1,4 +1,6 @@
-changelog.md
 codingLessonsLearnt.md
-versioning/13748321_v1.3.7_business_request_summary.pdf
-versioning/13748321_v1.3.7_ai_dev_prompts.md
+changelog.md
+src/lib/place-search.ts
+supabase/functions/place-search/index.ts
+versioning/13804152_v1.3.8_business_request_summary.pdf
+versioning/13804152_v1.3.8_ai_dev_prompts.md

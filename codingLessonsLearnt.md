@@ -1,5 +1,34 @@
 # LEGFONTOSABB: SEMMILYEN MÁR JÓL MŰKÖDŐ FUNKCIÓT NEM SZABAD ELRONTANI.
 
+# FEJLESZTÉSI MÓDSZERTAN (MINDIG EZT KÖVESD ELŐSZÖR)
+
+**KÖTELEZŐ indító prompt minden új fejlesztéshez / hibajavításhoz:**
+1. **Legfontosabb, hogy semmilyen már jól működő funkciót ne ronts el.**
+2. Olvasd be a `codingLessonsLearnt.md` és a `changelog.md` fájlt.
+3. Az újonnan megfogalmazott üzleti követelmény vagy hibajavítás érdekében **szedd össze az összes szükséges tudást elsődlegesen hivatalos internetes forrásokból**.
+4. A begyűjtött tudás alapján **detektáld a valós gyökérokot** a kódban / konfigurációban / futási láncban.
+5. **Tesztek vagy célzott próbák alapján** hasonlíts össze legalább 2 megoldási koncepciót, és a **leghatékonyabbat / legkisebb regressziós kockázatút** válaszd.
+6. A fejlesztést checklist-alapon végezd el.
+7. A fejlesztés végén kötelezően ellenőrizd:
+   - minden kért javítás / fejlesztés elkészült-e,
+   - minden korábbi fontos funkció megmaradt-e,
+   - a `codingLessonsLearnt.md`-ben felsorolt korábbi hibaminták nem tértek-e vissza,
+   - a `changelog.md` frissült-e,
+   - a `versioning/` mappába bekerült-e az új PDF + MD dokumentumpár.
+
+**Kötelező végellenőrző checklist minden szállítás előtt:**
+- [ ] `codingLessonsLearnt.md` beolvasva
+- [ ] `changelog.md` beolvasva
+- [ ] webes / hivatalos forráskutatás megtörtént
+- [ ] gyökérok detektálva
+- [ ] legalább 2 megoldási koncepció kiértékelve
+- [ ] a legkisebb regressziós kockázatú megoldás kiválasztva
+- [ ] korábbi működő funkciók megléte double-checkelve
+- [ ] új regresszió nem maradt bent
+- [ ] changelog frissítve
+- [ ] versioning PDF + MD elkészítve és hivatkozva
+
+
 # codingLessonsLearnt.md — Kapakka PubApp
 
 ## ⚠️ UTASÍTÁSOK (MINDIG OLVASD EL ELŐSZÖR!)
@@ -203,24 +232,10 @@
 
 *Appendelve: 2026-03-31 — v1.3.6*
 
-
-## ➕ APPEND — 2026-03-31 folyamatkövetési szabály
-
-### [HIBA-034] Fejlesztés előtti üzleti összefoglaló és promptfájl hiánya → pontatlan megvalósítás / regressziós kockázat
-- **Dátum**: 2026-03-31 (v1.3.7)
-- **Fájl**: `changelog.md`, `versioning/*`, teljes fejlesztési folyamat
-- **Hibaüzenet**: Nincs klasszikus build error — a probléma folyamat- és követelménykezelési: dokumentált előkészítés nélkül a fejlesztés félreérthetővé és regresszióveszélyessé válik.
-- **Gyökérok**: A fejlesztés megkezdése előtt nem készült külön, verziózott üzleti kérés-összefoglaló és AI promptfájl, ezért a requirement értelmezése, a scope és a megőrzendő funkciók köre nem volt kellően formalizált.
-- **Javítás**: Kötelező folyamat bevezetése: minden fejlesztés előtt el kell olvasni a `changelog.md` és `codingLessonsLearnt.md` fájlokat, majd létre kell hozni egy PDF összefoglalót és egy MD promptfájlt közös 8 jegyű azonosítóval a `versioning/` mappába. A changelog ezekre hivatkozik.
-- **Megelőzés**: **MINDIG** kövesd ezt a sorrendet: 1) changelog beolvasása, 2) codingLessonsLearnt beolvasása, 3) PDF üzleti összefoglaló, 4) MD promptfájl, 5) changelog hivatkozások és checklist, 6) csak ezután fejlesztés.
-
-## 📋 KIEGÉSZÍTŐ CHECKLISTA — verziózott előkészítés minden fejlesztéshez
-
-- [ ] A fejlesztés előtt elolvastam a `changelog.md` fájlt.
-- [ ] A fejlesztés előtt elolvastam a `codingLessonsLearnt.md` fájlt.
-- [ ] A kérést saját szavaimmal összefoglaltam.
-- [ ] Létrehoztam az új PDF üzleti kérés-összefoglalót.
-- [ ] Létrehoztam az új MD AI promptfájlt.
-- [ ] A két fájl ugyanazzal a 8 jegyű azonosítóval került a `versioning/` mappába.
-- [ ] A changelog frissült a két új fájl hivatkozásával.
-- [ ] Fejlesztés végén visszaellenőriztem, hogy korábbi működő funkció nem sérült.
+### [HIBA-034] Venue / címkereső túl agresszív végszűrése lenullázta a provider találatokat
+- **Dátum**: 2026-03-31 (v1.3.8)
+- **Fájl**: `supabase/functions/place-search/index.ts`, `src/lib/place-search.ts`
+- **Hibaüzenet**: Futás közben a Geoapify / TomTom provider már visszaadott nyers venue-ket, de a UI mégis üres maradt („nincs találat”).
+- **Gyökérok**: A place-search edge function a merge után kemény `textMatchesQuery()` szűrést futtatott, ami városközpontú vagy geokódolt közeli venue keresésnél lenullázhatta a listát. Emellett a Geoapify Places API-hoz `text=` paraméter ment, miközben a Places API dokumentációja `name=` és térbeli `filter`/`bias` használatot ír elő.
+- **Javítás**: A végszűrés hard filter helyett rangsorolássá lett alakítva, a Geoapify integráció külön nearby + name-search ágra váltott, a TomTom nearby keresés categorySearch alapú lett, és debug-safe meta információ került a function válaszába.
+- **Megelőzés**: Provider találatoknál **SOHA** ne legyen olyan utólagos végszűrés, ami teljesen lenullázhatja a már visszaadott candidate listát, hacsak nincs külön bizonyítva, hogy irrelevánsak. Keresőhibánál mindig ellenőrizni kell a harmadik fél API dokumentációját a ténylegesen támogatott query paraméterekre.

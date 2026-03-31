@@ -2,44 +2,39 @@
 
 Minden változtatás dátummal és leírással.
 
-
-
 ---
 
-## [1.3.7] — 2026-03-31
 
-### 📘 Folyamat- és verziózáskövetési követelmény bevezetése
-- Minden fejlesztés előtt kötelező a `changelog.md` és a `codingLessonsLearnt.md` teljes beolvasása.
-- Minden fejlesztéshez kötelezően létre kell jönnie egy új PDF üzleti kérés összefoglalónak és egy kapcsolódó MD promptfájlnak.
-- A két fájlt közös, 8 jegyű azonosító kapcsolja össze, amely tartalmazza a verziószámot is.
-- A fájlok a `versioning/` mappába kerülnek, mindig új példányként.
-- A changelognak a továbbiakban hivatkoznia kell a kapcsolódó versioning fájlokra.
+## [1.3.8] — 2026-03-31
 
-### 🔗 Kapcsolódó versioning fájlok
-- PDF: `versioning/13748321_v1.3.7_business_request_summary.pdf`
-- MD: `versioning/13748321_v1.3.7_ai_dev_prompts.md`
+### 🧭 Versioning és fejlesztési metodika
+- A fejlesztési workflow kiegészült azzal, hogy minden új üzleti kérés / hibajavítás előtt kötelező:
+  - `codingLessonsLearnt.md` és `changelog.md` beolvasása
+  - hivatalos internetes forráskutatás a gyökérok detektálásához
+  - megoldási koncepciók kiértékelése és regressziós kockázat szerinti választás
+- Új versioning dokumentumpár készült ehhez a hibajavításhoz:
+  - `versioning/13804152_v1.3.8_business_request_summary.pdf`
+  - `versioning/13804152_v1.3.8_ai_dev_prompts.md`
 
-### ✅ Pre-flight checklist
-- [ ] `changelog.md` elolvasva
-- [ ] `codingLessonsLearnt.md` elolvasva
-- [ ] a megőrzendő működő funkciók azonosítva
-- [ ] új PDF üzleti kérés-összefoglaló létrehozva
-- [ ] új MD AI promptfájl létrehozva
-- [ ] közös 8 jegyű azonosító hozzárendelve
+### 🐛 Venue finder / place-search hibajavítás
+- A Geoapify Places integráció többé nem küld nem támogatott `text` paramétert a Places API felé; a helykeresés nearby + `name` alapú keresésre lett bontva.
+- A TomTom integráció a közeli kategóriaalapú venue-listákhoz `categorySearch` irányt használ a korábbi túl szűk keresési út helyett.
+- A `place-search` edge functionből kikerült a túl agresszív végszűrés, amely lenullázhatta a már megtalált provider venue-listát.
+- A válasz debug-safe meta mezőt is ad (`raw_candidate_count`, `strict_match_count`, `returned_count`, `used_lenient_mode`), így a következő hibakeresés gyorsabb.
+- A kliensoldali `searchPlaces()` helper puhább retry logikát kapott, és csak ezután esik vissza cache-re.
 
-### 🛠️ Fejlesztési checklist
-- [ ] a kérés többszöri átolvasással értelmezve
-- [ ] a feladat saját szavas összefoglalása elkészítve
-- [ ] csak a szükséges fájlok módosítva
-- [ ] működő funkció nem lett törölve vagy regresszióval elrontva
-- [ ] a coding lessons fájlban jelzett hibaminták elkerülve
+### ✅ Végellenőrzési checklist
+- [x] `codingLessonsLearnt.md` beolvasva
+- [x] `changelog.md` beolvasva
+- [x] hivatalos internetes forráskutatás megtörtént
+- [x] gyökérok detektálva
+- [x] megoldási koncepciók összevetve
+- [x] regressziószegényebb megoldás kiválasztva
+- [x] korábbi működő funkciók search útvonala megőrizve
+- [x] lessons/changelog frissítve
+- [x] versioning dokumentumpár elkészítve
 
-### 🔍 Fejlesztés végi ellenőrző lista
-- [ ] minden fejlesztési és javítási kérés teljesítve
-- [ ] korábbi funkciók megléte visszaellenőrizve
-- [ ] versioning dokumentumpár a repóban elérhető
-- [ ] changelog a versioning fájlokra hivatkozik
-
+---
 
 ## [1.1.0] — 2026-03-30
 

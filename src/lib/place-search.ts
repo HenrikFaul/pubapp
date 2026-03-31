@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabase'
 
 export interface PlaceSearchParams {
@@ -99,10 +98,14 @@ async function searchCachedPlaces(params: PlaceSearchParams): Promise<ExternalPl
 
 async function invokePlaceSearch(body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke('place-search', { body })
-  if (error) return { rows: [] as ExternalPlace[], error: error.message }
+  if (error) return { rows: [] as ExternalPlace[], error: error.message, debug: null as Record<string, unknown> | null }
 
   if (data && typeof data === 'object' && typeof (data as { error?: unknown }).error === 'string') {
-    return { rows: [] as ExternalPlace[], error: String((data as { error: string }).error) }
+    return {
+      rows: [] as ExternalPlace[],
+      error: String((data as { error: string }).error),
+      debug: typeof data === 'object' ? (data as Record<string, unknown>) : null,
+    }
   }
 
   const rows: any[] = Array.isArray(data?.results)
@@ -113,7 +116,8 @@ async function invokePlaceSearch(body: Record<string, unknown>) {
 
   const normalizedRows: ExternalPlace[] = rows.map((row: any) => normalizeExternalPlace(row))
   const filteredRows: ExternalPlace[] = normalizedRows.filter((row: ExternalPlace) => Boolean(row.external_id))
-  return { rows: filteredRows, error: null as string | null }
+  const debug = typeof data === 'object' && data ? (data as Record<string, unknown>).debug as Record<string, unknown> | undefined : undefined
+  return { rows: filteredRows, error: null as string | null, debug: debug || null }
 }
 
 export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalPlace[]> {
@@ -130,15 +134,19 @@ export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalP
   const primary = await invokePlaceSearch(payload)
   if (primary.rows.length > 0) return primary.rows
 
-  // Broader retry if category/openNow combination is too restrictive.
-  if ((params.query || '').trim()) {
+  // If provider calls happened but the primary result set is still empty,
+  // retry once with softer constraints before falling back to cache.
+  const rawCandidateCount = Number(primary.debug?.raw_candidate_count || 0)
+  if (rawCandidateCount > 0 || (params.query || '').trim()) {
     const fallback = await invokePlaceSearch({
       query: params.query || '',
+      category: params.category || '',
       latitude: params.latitude,
       longitude: params.longitude,
-      radius_km: params.radiusKm ?? 10,
+      radius_km: Math.max(params.radiusKm ?? 10, 15),
       open_now: false,
       limit: params.limit ?? 24,
+      lenient: true,
     })
     if (fallback.rows.length > 0) return fallback.rows
   }
