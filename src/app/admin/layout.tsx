@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -10,7 +11,6 @@ import {
   ClipboardList,
   FileDown,
   HelpCircle,
-  ScrollText,
   LogOut,
   Menu,
   Monitor,
@@ -19,7 +19,7 @@ import {
   Shield,
   Sparkles,
   Store,
-  Users,
+  UtensilsCrossed,
   X,
   Zap,
 } from 'lucide-react'
@@ -28,7 +28,7 @@ const NAV = [
   { href: '/admin', label: 'Élő kiszolgálás', icon: Zap },
   { href: '/admin/kds', label: 'Konyha monitor', icon: Monitor },
   { href: '/admin/orders', label: 'Rendelések', icon: ClipboardList },
-  { href: '/admin/menu', label: 'Étlap', icon: ScrollText },
+  { href: '/admin/menu', label: 'Étlap', icon: UtensilsCrossed },
   { href: '/admin/reservations', label: 'Foglalások', icon: CalendarClock },
   { href: '/admin/inventory', label: 'Készlet', icon: Package },
   { href: '/admin/stats', label: 'Statisztikák', icon: BarChart3 },
@@ -94,7 +94,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
     }
 
-    init()
+    void init()
 
     return () => {
       if (liveChannel) supabase.removeChannel(liveChannel)
@@ -173,7 +173,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
 
-        <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-hide">
+        <nav className="flex-1 space-y-2 overflow-y-auto pr-1">
           {NAV.map((item) => {
             const Icon = item.icon
             const active = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href))

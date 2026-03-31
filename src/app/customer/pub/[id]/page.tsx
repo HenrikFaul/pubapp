@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -5,11 +6,17 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
 import { copyText, DAY_NAMES, formatPrice, isOpenNow } from '@/lib/utils'
-import { ArrowLeft, Calendar, Check, ChevronRight, Clock, MapPin, Send, Star, Store, Users, X } from 'lucide-react'
+import { ArrowLeft, Calendar, Check, Clock, MapPin, Send, Star, Store, X } from 'lucide-react'
 import type { CartItem, MenuCategory, MenuItem, PlaceFavorite, Profile, Venue } from '@/types'
 
 type OrderType = 'bar_pickup' | 'table_service'
 type PaymentMethod = 'cash' | 'card'
+
+function persistActiveContext(payload: { venueId: string; venueName: string; tableNumber?: string }) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem('kapakka_active_context', JSON.stringify(payload))
+  window.dispatchEvent(new Event('kapakka-context-changed'))
+}
 
 export default function VenuePage() {
   const router = useRouter()
@@ -58,21 +65,10 @@ export default function VenuePage() {
     setItems((itemRows || []) as MenuItem[])
     setActiveCat(categoryRows?.[0]?.id || null)
 
-    const tableFromQuery = searchParams.get('table')
-    if (tableFromQuery) {
-      setTableNum(tableFromQuery)
+    const queryTable = searchParams.get('table')
+    if (queryTable) {
+      setTableNum(queryTable)
       setOrderType('table_service')
-    }
-
-    if (typeof window !== 'undefined' && venueRow?.id && venueRow?.name) {
-      window.localStorage.setItem(
-        'kapakka_checked_in_context',
-        JSON.stringify({
-          venueId: venueRow.id,
-          venueName: venueRow.name,
-          tableNumber: tableFromQuery || undefined,
-        })
-      )
     }
 
     const user = auth.data.user
@@ -91,11 +87,19 @@ export default function VenuePage() {
       }))
     }
 
+    if (venueRow?.id) {
+      persistActiveContext({
+        venueId: venueRow.id,
+        venueName: venueRow.name,
+        tableNumber: queryTable || undefined,
+      })
+    }
+
     setLoading(false)
   }, [id, searchParams])
 
   useEffect(() => {
-    load()
+    void load()
   }, [load])
 
   function add(menuItem: MenuItem) {
@@ -141,17 +145,6 @@ export default function VenuePage() {
       tableId = table?.id
     }
 
-    if (typeof window !== 'undefined' && venue?.id && venue?.name) {
-      window.localStorage.setItem(
-        'kapakka_checked_in_context',
-        JSON.stringify({
-          venueId: venue.id,
-          venueName: venue.name,
-          tableNumber: tableNum.trim() || undefined,
-        })
-      )
-    }
-
     const orderPayload = {
       venue_id: id,
       customer_id: user?.id,
@@ -180,6 +173,12 @@ export default function VenuePage() {
         total_price: line.menu_item.price * line.quantity,
       }))
     )
+
+    persistActiveContext({
+      venueId: venue.id,
+      venueName: venue.name,
+      tableNumber: tableNum.trim() || undefined,
+    })
 
     setCart([])
     setCartOpen(false)
@@ -237,7 +236,7 @@ export default function VenuePage() {
         await navigator.share({ title: venue.name, text, url })
         return
       } catch {
-        // fallback below
+        // fallback
       }
     }
     const ok = await copyText(`${text}\n${url}`)
@@ -305,6 +304,7 @@ export default function VenuePage() {
                 </span>
                 {typeof venue.rating === 'number' && <span className="info-chip text-amber-400"><Star className="h-4 w-4 fill-current" /> {venue.rating.toFixed(1)}</span>}
                 {venue.has_reservations && <span className="info-chip"><Calendar className="h-4 w-4" /> Foglalható</span>}
+                {tableNum && <span className="info-chip">Asztal {tableNum}</span>}
               </div>
               <h1 className="section-title mt-5">{venue.name}</h1>
               <p className="section-subtitle mt-3 max-w-2xl">{venue.description || 'Digitális étlap, rendeléskövetés, foglalás és közösségi venue élmény egy felületen.'}</p>
@@ -442,7 +442,7 @@ export default function VenuePage() {
               {Object.entries(venue.opening_hours || {}).map(([day, value]) => (
                 <div key={day} className="flex items-center justify-between rounded-[18px] border border-white/10 bg-white/5 px-3 py-2">
                   <span>{DAY_NAMES[day] || day}</span>
-                  <span className="font-semibold text-white">{value.closed ? 'Zárva' : `${value.open} – ${value.close}`}</span>
+                  <span className="font-semibold text-white">{(value as any).closed ? 'Zárva' : `${(value as any).open} – ${(value as any).close}`}</span>
                 </div>
               ))}
             </div>
@@ -501,7 +501,7 @@ export default function VenuePage() {
                 <span className="text-2xl font-black text-amber-400">{formatPrice(total)}</span>
               </div>
 
-              <button onClick={placeOrder} disabled={submitting} className="btn-kapakka text-base font-black">
+              <button onClick={() => void placeOrder()} disabled={submitting} className="btn-kapakka text-base font-black">
                 <Check className="h-4 w-4" /> {submitting ? 'Küldés…' : 'Rendelés leadása'}
               </button>
             </div>
@@ -537,7 +537,7 @@ export default function VenuePage() {
 
             <div className="mt-5 flex gap-3">
               <button onClick={() => setReservationOpen(false)} className="btn-outline flex-1">Mégse</button>
-              <button onClick={saveReservation} disabled={reservationSaving || !reservationForm.customer_name} className="btn-kapakka flex-1">
+              <button onClick={() => void saveReservation()} disabled={reservationSaving || !reservationForm.customer_name} className="btn-kapakka flex-1">
                 {reservationSaving ? 'Mentés…' : 'Foglalás elküldése'}
               </button>
             </div>

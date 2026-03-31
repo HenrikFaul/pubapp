@@ -1,3 +1,4 @@
+
 // deno-lint-ignore-file no-explicit-any
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 
@@ -197,25 +198,43 @@ Deno.serve(async (request) => {
         (tomtomKey ? await geocodeTomTom(trimmedQuery, tomtomKey) : null)
     }
 
-    const [geoTextResults, tomtomTextResults, geoNearbyResults, tomtomNearbyResults] = await Promise.all([
+    const [geoTextResults, tomtomTextResults, geoNearbyResults, tomtomNearbyResults, geoCategoryResults, tomtomCategoryResults] = await Promise.all([
       trimmedQuery && geoapifyKey ? searchGeoapify({ ...body, limit }, geoapifyKey, explicitCenter || resolvedCenter, trimmedQuery) : Promise.resolve([]),
       trimmedQuery && tomtomKey ? searchTomTom({ ...body, limit }, tomtomKey, explicitCenter || resolvedCenter, trimmedQuery) : Promise.resolve([]),
       resolvedCenter && geoapifyKey ? searchGeoapify({ ...body, limit, latitude: resolvedCenter.latitude, longitude: resolvedCenter.longitude }, geoapifyKey, resolvedCenter) : Promise.resolve([]),
       resolvedCenter && tomtomKey ? searchTomTom({ ...body, limit, latitude: resolvedCenter.latitude, longitude: resolvedCenter.longitude }, tomtomKey, resolvedCenter) : Promise.resolve([]),
+      resolvedCenter && trimmedQuery && geoapifyKey ? searchGeoapify({ ...body, limit }, geoapifyKey, resolvedCenter) : Promise.resolve([]),
+      resolvedCenter && trimmedQuery && tomtomKey ? searchTomTom({ ...body, limit }, tomtomKey, resolvedCenter) : Promise.resolve([]),
     ])
 
-    const directTextMatches = [...geoTextResults, ...tomtomTextResults].filter((row) => textMatchesQuery(row, trimmedQuery))
-    const nearbyMatches = [...geoNearbyResults, ...tomtomNearbyResults]
+    let merged = dedupe([
+      ...geoTextResults,
+      ...tomtomTextResults,
+      ...geoNearbyResults,
+      ...tomtomNearbyResults,
+      ...geoCategoryResults,
+      ...tomtomCategoryResults,
+    ]).map((row) => ({
+      ...row,
+      distance_km:
+        typeof row.distance_km === 'number'
+          ? row.distance_km
+          : resolvedCenter
+            ? haversineKm(
+                resolvedCenter.latitude,
+                resolvedCenter.longitude,
+                row.latitude || resolvedCenter.latitude,
+                row.longitude || resolvedCenter.longitude
+              )
+            : undefined,
+    }))
 
-    let merged = dedupe([...directTextMatches, ...nearbyMatches]).map((row) => ({
-        ...row,
-        distance_km:
-          typeof row.distance_km === 'number'
-            ? row.distance_km
-            : resolvedCenter
-              ? haversineKm(resolvedCenter.latitude, resolvedCenter.longitude, row.latitude || resolvedCenter.latitude, row.longitude || resolvedCenter.longitude)
-              : undefined,
-      }))
+    if (trimmedQuery) {
+      merged = merged.filter((row) => {
+        if (textMatchesQuery(row, trimmedQuery)) return true
+        return typeof row.distance_km === 'number' && row.distance_km <= Math.max(5, Number(body.radius_km || 10))
+      })
+    }
 
     if (body.open_now) {
       merged = merged.filter((row) => row.open_now === true || !Array.isArray(row.opening_hours_text))

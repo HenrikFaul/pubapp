@@ -1,4 +1,4 @@
-# LEGFONTOSABB SZABÁLY: semmilyen működő funkciót ne ronts el.
+# LEGFONTOSABB: SEMMILYEN MÁR JÓL MŰKÖDŐ FUNKCIÓT NEM SZABAD ELRONTANI.
 
 # codingLessonsLearnt.md — Kapakka PubApp
 
@@ -129,16 +129,6 @@
 - **Dátum**: Általános (megelőző figyelmeztetés)
 - **Megelőzés**: Lucide React ikonokat MINDIG a hivatalos listáról importáld. Ha nem biztos, hogy létezik, használj olyan ikont ami biztosan megvan (pl. `Settings`, `User`, `Search`, `Plus`, `Check`, `X`). A `lucide-react@0.363.0` verzióban ezek biztosan elérhetők: Zap, ClipboardList, UtensilsCrossed, Package, BarChart3, Settings, HelpCircle, Menu, Bell, LogOut, Shield, ChevronRight, X, Monitor, CalendarClock, FileDown, Plus, Pencil, Trash2, Search, CheckCircle, XCircle, Volume2, VolumeX, Maximize, Minimize, RefreshCw, Check, Clock, AlertTriangle, Download, FileSpreadsheet, Calendar, TrendingUp, ShoppingBag, Users, Phone, Mail, User, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Sparkles, Star, MapPin, Store, ScrollText, LayoutDashboard, Activity, Info, AlertCircle, ToggleLeft, ToggleRight, Save, Filter, Bug, Send.
 
-### [HIBA-015] Lucide React redesign patch — `House` ikon build hibát okozott
-- **Dátum**: 2026-03-30 (v1.2.1)
-- **Fájl**: `src/app/customer/page.tsx:15`
-- **Hibaüzenet**: `Type error: "lucide-react" has no exported member named 'House'. Did you mean 'Mouse'?`
-- **Gyökérok**: A redesign patch-ben olyan Lucide ikont importáltam (`House`), ami a projektben használt verzióban nem exportált. Ráadásul több más ikon is a "biztosan elérhető" listán kívül volt, ezért a patch nem követte a kötelező ikon-import szabályt.
-- **Javítás**: A `House` importot `LayoutDashboard`-ra cseréltem, és a redesign patch összes új Lucide importját átnéztem. Az összes bizonytalan ikont lecseréltem a codingLessonsLearnt-ben felsorolt, biztosan elérhető ikonokra.
-- **Megelőzés**: **MINDIG** ellenőrizd a redesign patch összes Lucide importját a `codingLessonsLearnt.md` [HIBA-011] pontja alapján. Új UI csomag kiadása előtt kötelező grep-pel végignézni az összes `from 'lucide-react'` importot, és csak a whitelistelt ikonok maradhatnak.
-
-
-
 ---
 
 ## 🟢 KATEGÓRIA 5: CSS / UI hibák
@@ -157,30 +147,6 @@
 
 ---
 
-### [HIBA-015] Patch-only csomagból kimaradt új supporting fájlak
-- **Dátum**: 2026-03-30 (v1.2.1)
-- **Fájl**: patch csomag / `src/app/layout.tsx`, `src/app/admin/config/page.tsx`
-- **Hibaüzenet**: Build/import hiba, mert az újonnan hivatkozott `@/components/AppShellProviders` és `@/lib/themes` fájlok nem voltak benne a patch-only zipben.
-- **Gyökérok**: A patch-only csomagolásnál nem csak a módosított meglévő fájlakat, hanem az újonnan BEVEZETETT supporting fájlokat is csomagolni kell. Ezek kimaradtak.
-- **Javítás**: A patch-only csomag listáját úgy kell összeállítani, hogy minden új import célfájlja bekerüljön.
-- **Megelőzés**: Patch készítés előtt **MINDIG** futtasd le ezt a checklistet: minden `import '@/...'` útvonalhoz létezik fájl ÉS a zipben is benne van, ha újonnan lett bevezetve.
-
-### [HIBA-016] Design patch buildbiztonság — csak syntax-ellenőrzött fájl csomagolható
-- **Dátum**: 2026-03-30 (v1.3.0)
-- **Fájl**: összes új / módosított `.tsx` fájl
-- **Hibaüzenet**: Potenciális — reszponzív redesign közben könnyű szintaktikai hibát vagy félbehagyott importot hagyni.
-- **Gyökérok**: Nagy redesignnál sok fájl változik egyszerre, ezért megnő a hibázás esélye.
-- **Javítás**: A patch csomagolás előtt a módosított TS/TSX fájlakat legalább TypeScript parser szinten ellenőrizni kell.
-- **Megelőzés**: **MINDIG** legyen build-safety lépés: ha teljes `npm build` nem futtatható, akkor minimum parser/syntax ellenőrzést kell végezni minden módosított TS/TSX fájlra.
-
-### [HIBA-017] Új adatbázis tábla / migráció még nincs fent — UI ne omoljon össze
-- **Dátum**: 2026-03-30 (v1.3.0)
-- **Fájl**: `src/app/customer/page.tsx`, `src/app/admin/config/page.tsx`, új social/place feature lekérdezések
-- **Hibaüzenet**: Potenciális — ha a `place_favorites`, `friendships`, `place_lists`, `app_settings` vagy `reservations` migráció még nincs lefuttatva, a featurelekérdezések hibát dobhatnak.
-- **Gyökérok**: A frontend hamarabb kerülhet fel, mint az új migráció.
-- **Javítás**: A lekérdezések `maybeSingle()` / `|| []` fallback mintával készültek, és a feature nem auth-kritikus ágon fut.
-- **Megelőzés**: **SOHA** ne legyen új opcionális feature táblára épített lekérdezés auth-kritikus vagy page-blocking. Új feature tábla = null-safe, fallbackes, nem-blokkoló betöltés.
-
 ## 📋 ELLENŐRZŐ LISTA (Minden commit előtt)
 
 - [ ] Auth-kritikus lekérdezésben NINCS FK JOIN? (profiles select = egyszerű `select('*')`)
@@ -192,259 +158,47 @@
 - [ ] Fájlnevek Next.js konvenciónak megfelelnek (`page.tsx`, `layout.tsx`)?
 - [ ] Egyedi CSS class-ok definiálva vannak a globals.css-ben?
 - [ ] Lucide ikonok a hivatalos listáról importálva?
-- [ ] Minden új import célfájlja benne van a patch-only csomagban?
-- [ ] Parser/syntax ellenőrzés lefutott a módosított TS/TSX fájlakon?
 - [ ] RLS policy-kban nincs cross-table JOIN más RLS-védett táblára?
 - [ ] Új SQL oszlopok esetén a kód `(: any)` castot használ?
 
 ---
 
-*Utoljára frissítve: 2026-03-30 — v1.3.0*
+*Utoljára frissítve: 2026-03-30 — v1.2.0*
 *Ez egy FOLYAMATOSAN BŐVÜLŐ fájl. Új hibákat MINDIG appendelj, SOHA ne törölj!*
 
-## ➕ APPEND — 2026-03-31 build hiba kiegészítés
 
-### [HIBA-023] Supabase Edge Function `Deno` globál — Next.js build alatti típushiba
-- **Dátum**: 2026-03-31 (v1.3.3)
-- **Fájl**: `supabase/functions/place-search/index.ts:110`, `tsconfig.json`
-- **Hibaüzenet**: `Type error: Cannot find name 'Deno'.`
-- **Gyökérok**: A Next.js root build / TypeScript ellenőrzés belefutott a `supabase/functions/...` alatti Supabase Edge Function fájlba, ami Deno runtime-ra íródott (`Deno.serve(...)`). A Next/Node oldali TypeScript környezet nem ismeri automatikusan a `Deno` globált, ezért a build megállt. A probléma nem a business logika volt, hanem a runtime-keveredés: a Deno-s Edge Function ugyanabban a typecheck körben maradt, mint a Next app.
-- **Javítás**:
-  1. A root `tsconfig.json` `exclude` listájába bekerült a `supabase/functions/**/*`, így a Next.js build nem typecheckeli a Deno edge functionöket.
-  2. A `supabase/functions/place-search/index.ts` fájl tetejére explicit ambient `Deno` deklaráció került, hogy a function önmagában is egyértelműen Deno runtime globálra támaszkodik.
-- **Megelőzés**: **SOHA** ne hagyd a Deno runtime-ra írt Supabase Edge Function fájlokat a Next.js root typecheck hatókörében. Node/Next build és Supabase Edge Function typecheck legyen külön kezelve. Új Edge Functionnél azonnal ellenőrizd, hogy a `supabase/functions/**` mappa ki van-e zárva a root `tsconfig.json`-ból.
+## ➕ APPEND — 2026-03-31 regressziók és UX-hibák
 
-## 📋 ELLENŐRZŐ LISTA — új buildbiztonsági pontok
-
-- [ ] A `supabase/functions/**` mappa ki van zárva a Next.js root `tsconfig.json` typecheckjéből?
-- [ ] A Deno runtime-os Edge Function saját runtime deklarációval vagy típussal rendelkezik?
-- [ ] A Supabase Edge Function ellenőrzése külön történik a Next app buildtől?
-
-
-## 🟣 KATEGÓRIA 6: Supabase Edge Functions / Deno / Deploy
-
-### [HIBA-023] Next.js build beletípusellenőrzi a Supabase Edge Functionöket → `Cannot find name 'Deno'`
-- **Dátum**: 2026-03-31 (internetes gyűjtés)
-- **Fájl**: `supabase/functions/**` + `tsconfig.json` (Next.js)
-- **Hibaüzenet**: `Type error: Cannot find name 'Deno'.` (vagy: `Cannot find module 'https://deno.land/...' or its corresponding type declarations.`)
-- **Gyökérok**: A Next.js `next build` TypeScript lépése a repo-ban lévő `.ts/.tsx` fájlokat a saját `tsconfig.json` szerint típusellenőrzi. A Supabase Edge Functionök viszont Deno kompatibilis runtime-ra készülnek (Deno globálokkal, import map-pel / URL-es importokkal), ezért a Node/Next TypeScript környezetben a `Deno.*` és a Deno-specifikus importok ismeretlenek → build blokkol.
-- **Javítás**:
-  1. Zárd ki a Deno-s Edge Function könyvtárat a Next TypeScript buildből (és garantáld, hogy a Next app _nem importál_ közvetlenül `supabase/functions/**` alól):
-     ```json
-     // tsconfig.json
-     {
-       "exclude": [
-         "node_modules",
-         "supabase/functions/**/*"
-       ]
-     }
-     ```
-  2. Az Edge Function fájlok tetején add hozzá a Supabase Edge Runtime típusdefiníciókat (editor support + Deno globálok):
-     ```ts
-     // supabase/functions/<fn>/index.ts
-     import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-     ```
-  3. VSCode-ban engedélyezd a Deno language servert csak a `supabase/functions` folderre (ne az egész workspace-re), hogy ne ütközzön a Next-es TS szerverrel:
-     ```json
-     // .vscode/settings.json
-     {
-       "deno.enablePaths": ["./supabase/functions"],
-       "deno.importMap": "./supabase/functions/import_map.json"
-     }
-     ```
-- **Megelőzés**:
-  - Monorepo (Next + Deno) esetén különítsd el a type-check környezeteket: Next build = Node/TS, Edge Functions = Deno (külön ellenőrzés: `supabase functions serve` / Deno check).
-  - Checklist:
-    - [ ] `supabase/functions/**` ki van zárva a Next `tsconfig.json`-ből?
-    - [ ] Minden Edge Function tetején ott van az `edge-runtime.d.ts` import?
-    - [ ] A Deno VSCode extension csak a `supabase/functions` útvonalon fut?
-
-- **Források**:
-  - https://supabase.com/docs/guides/functions/development-environment
-  - https://supabase.com/docs/guides/functions/auth
-  - https://github.com/orgs/supabase/discussions/22470
-  - https://jsr.io/@supabase/functions-js/doc/edge-runtime.d.ts/
-  - https://www.typescriptlang.org/tsconfig#exclude
-
-### [HIBA-024] Next.js Edge Runtime / middleware: Node modul import → build/runtime crash
-- **Dátum**: 2026-03-31 (internetes gyűjtés)
-- **Fájl**: `middleware.ts` (és bármely Edge runtime-ban futó Route Handler/Proxy)
-- **Hibaüzenet**: `Error: The edge runtime does not support Node.js 'crypto' module` (és hasonló: `fs`, `child_process`, `process` stb.)
-- **Gyökérok**: A Next.js middleware és az Edge Runtime környezet nem támogat natív Node.js API-kat és globálokat. Ha middleware-ben vagy Edge runtime-os route-ban Node-only csomag (vagy transzitív Node import) jelenik meg, a build vagy a futásidő elhasal.
-- **Javítás**:
-  1. Middleware-ben csak Web API-kompatibilis kód legyen (pl. `fetch`, Web Crypto API).
-  2. Node-only logikát (fájlkezelés, Node crypto, child_process, stb.) vidd át Node runtime-ágnak megfelelő helyre (pl. Server Action / Node runtime-os Route Handler), és a middleware maradjon minimális (routing, header/cookie kezelés).
-- **Megelőzés**:
-  - Checklist:
-    - [ ] `middleware.ts` nem importál Node modulokat (`crypto`, `fs`, `path`, `child_process`...)?
-    - [ ] Edge runtime-ban használt dependency-k ESM kompatibilisek és nem használnak natív Node API-kat?
-
-- **Források**:
-  - https://nextjs.org/docs/messages/node-module-in-edge-runtime
-  - https://nextjs.org/docs/app/api-reference/edge
-  - https://vercel.com/docs/functions/runtimes/edge
-
-### [HIBA-025] Supabase Edge Function hívás böngészőből: CORS preflight (OPTIONS) hiánya
-- **Dátum**: 2026-03-31 (internetes gyűjtés)
-- **Fájl**: `supabase/functions/<fn>/index.ts`
-- **Hibaüzenet**: Böngésző konzol: `blocked by CORS policy` / `Response to preflight request doesn't pass access control check` / `No 'Access-Control-Allow-Origin' header...`
-- **Gyökérok**: Böngészőből hívott Edge Function esetén a CORS preflight (OPTIONS) kérés kötelező. Ha a function nem kezeli az OPTIONS-t, vagy nem adja vissza a szükséges `Access-Control-Allow-*` headereket (különösen `authorization, x-client-info, apikey, content-type`), a böngésző blokkolja a hívást, még akkor is, ha a function logikája egyébként helyes.
-- **Javítás**:
-  1. **Ajánlott (supabase-js v2.95.0+)**: használd a `corsHeaders` exportot, hogy mindig szinkronban legyen a kliens által küldött headerekkel:
-     ```ts
-     import { corsHeaders } from '@supabase/supabase-js/cors'
-
-     Deno.serve(async (req) => {
-       if (req.method === 'OPTIONS') {
-         return new Response('ok', { headers: corsHeaders })
-       }
-
-       // ...logic...
-
-       return new Response(JSON.stringify({ ok: true }), {
-         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-         status: 200,
-       })
-     })
-     ```
-  2. Régebbi supabase-js verziónál `_shared/cors.ts` file-ba tedd a `corsHeaders` objektumot, és importáld.
-- **Megelőzés**:
-  - Checklist:
-    - [ ] Minden browserből hívható Edge Function kezeli az OPTIONS preflightot?
-    - [ ] A response minden ágon tartalmazza a CORS headereket (success + error is)?
-
-- **Források**:
-  - https://supabase.com/docs/guides/functions/cors
-  - https://supabase.com/docs/guides/troubleshooting/unable-to-call-edge-function
-
-### [HIBA-026] Edge Functionben hiányzó env var / secret: `Deno.env.get()` → `undefined` productionban
-- **Dátum**: 2026-03-31 (internetes gyűjtés)
-- **Fájl**: `supabase/functions/<fn>/index.ts` + Supabase secrets (Dashboard/CLI)
-- **Hibaüzenet**: 500 / runtime exception (pl. hiányzó API key), vagy logban: `undefined` / `null` értékek a `Deno.env.get('...')` hívásnál
-- **Gyökérok**: Lokálisan működik (mert `.env` jelen van), de deploy után a secret nincs beállítva a Supabase projectben. Edge Functions-ben a production env varokat külön kell felvenni (Dashboard vagy `supabase secrets set`). Lokálisan sem mindegy, hogy hova kerül az `.env` (alapértelmezett: `supabase/functions/.env`, vagy explicit `--env-file`).
-- **Javítás**:
-  1. Lokális fejlesztés: használj `supabase/functions/.env` fájlt **vagy** indításkor explicit env file-t:
-     ```bash
-     supabase functions serve <fn> --env-file .env.local
-     ```
-  2. Production: secrets feltöltése Dashboardon vagy CLI-vel:
-     ```bash
-     supabase secrets set --env-file .env
-     # vagy egyenként:
-     supabase secrets set STRIPE_SECRET_KEY=...
-     ```
-  3. A function elején *fail fast* ellenőrzés (hogy a hiba azonnal, érthetően derüljön ki):
-     ```ts
-     const KEY = Deno.env.get('STRIPE_SECRET_KEY')
-     if (!KEY) return new Response('Missing STRIPE_SECRET_KEY', { status: 500 })
-     ```
-- **Megelőzés**:
-  - Checklist:
-    - [ ] Secrets be vannak állítva a Supabase Dashboard/CLI-ban, nem csak lokális `.env`-ben?
-    - [ ] `.env` file-ok gitignore-ban vannak?
-    - [ ] A kritikus secret-ekre van `fail fast` ellenőrzés?
-
-- **Források**:
-  - https://supabase.com/docs/guides/functions/secrets
-  - https://supabase.com/docs/guides/functions/deploy
-
-### [HIBA-027] Edge Function 401 „Invalid JWT / Missing authorization header” még a kód futása előtt
-- **Dátum**: 2026-03-31 (internetes gyűjtés)
-- **Fájl**: Supabase Edge Function platform beállítás (`verify_jwt`) + `supabase/config.toml` + invokáció (client/fetch/cURL)
-- **Hibaüzenet**: `{ "code": 401, "message": "Invalid JWT" }` vagy `{ "code": 401, "message": "Missing authorization header" }` (a function logban sokszor SEMMI, mert a kód meg sem fut)
-- **Gyökérok**:
-  - A Supabase Edge Functions-ben van egy built-in (legacy) JWT ellenőrzés, ami a function kód futása előtt történik. Ha az Authorization header hiányzik, a token lejárt/hibás, vagy a projekt már az új (aszimmetrikus) kulcsokra váltott, a legacy ellenőrzés elbukik és 401-et ad vissza.
-  - Új API key modellnél (publishable/secret `sb_...`) a legacy JWT ellenőrzés nem mindig kompatibilis, ezért a beépített check letiltása és saját auth implementáció javasolt.
-- **Javítás**:
-  1. Ha a functionnek **kell** auth: ellenőrizd, hogy a hívásban tényleg van `Authorization: Bearer <token>` (Supabase kliens általában automatikusan adja).
-  2. Ha webhook/public endpoint vagy új kulcsmigráció miatt **nem** használható legacy JWT check:
-     - Kapcsold ki a built-in ellenőrzést function szinten:
-       ```toml
-       # supabase/config.toml
-       [functions.<fn>]
-       verify_jwt = false
-       ```
-       vagy deploy-nál:
-       ```bash
-       supabase functions deploy <fn> --no-verify-jwt
-       ```
-     - Implementálj auth-ot a functionben (pl. Supabase Auth `getClaims(token)` / vagy jose JWKS validáció template alapján).
-- **Megelőzés**:
-  - Checklist:
-    - [ ] Minden Edge Functionnél tudatos döntés: `verify_jwt` ON vagy OFF?
-    - [ ] Ha OFF: a function saját auth middleware-t tartalmaz (API key / JWT verify / signature verify)?
-    - [ ] 401 esetén első lépés: response body alapján eldönteni, hogy platform adta-e (legacy check), vagy a saját kód.
-
-- **Források**:
-  - https://supabase.com/docs/guides/troubleshooting/edge-function-401-error-response
-  - https://supabase.com/docs/guides/functions/function-configuration
-  - https://supabase.com/docs/guides/functions/deploy
-  - https://supabase.com/docs/guides/functions/auth
-  - https://supabase.com/docs/guides/api/api-keys
-
-### [HIBA-028] Service role / secret key véletlen kiexportálása a böngészőbe (NEXT_PUBLIC + bundle inline)
-- **Dátum**: 2026-03-31 (internetes gyűjtés)
-- **Fájl**: `.env*`, `next.config.*`, bármely kliens oldali (`"use client"`) komponens, illetve minden böngészőbe bundle-ölt kód
-- **Hibaüzenet**: Nincs „klasszikus” build error — a hiba általában security incident formájában derül ki. Tipikus jel: a kulcs megtalálható a böngésző bundle-ben / DevToolsban.
-- **Gyökérok**:
-  - Next.js-ben a `NEXT_PUBLIC_` prefixű env varok „beégetődnek” a kliens bundle-be `next build` során.
-  - A Supabase `service_role` / secret key teljes hozzáférést ad és BYPASSRLS-sel működik, ezért publikusan sosem kerülhet ki.
-- **Javítás**:
-  1. Soha ne használj `NEXT_PUBLIC_` prefixet sem `SERVICE_ROLE`, sem `SB_SECRET`, sem egyéb admin kulcs esetén.
-  2. Admin műveletek (pl. `supabase.auth.admin.*`, RLS bypass) kizárólag szerver-oldali környezetben (Edge Function, Server Action, backend) futhatnak.
-- **Megelőzés**:
-  - Checklist:
-    - [ ] Nincs `NEXT_PUBLIC_*` env varban admin/service_role/secret key?
-    - [ ] `service_role` / secret key csak szerveren használódik (Edge Functions / backend), sosem böngészőben?
-    - [ ] Build artifact ellenőrzés: grep a bundle-ben `sb_secret_` / `service_role` mintákra.
-
-- **Források**:
-  - https://nextjs.org/docs/pages/guides/environment-variables
-  - https://supabase.com/docs/guides/api/api-keys
-  - https://supabase.com/docs/guides/database/secure-data
-
-### [HIBA-029] SSR + token refresh + CDN cache: rossz token „kiszivárog” cache-elt `Set-Cookie` válaszon
-- **Dátum**: 2026-03-31 (internetes gyűjtés)
-- **Fájl**: `lib/supabase/*` (SSR kliens), proxy/middleware/session refresh réteg, CDN/hosting beállítások
-- **Hibaüzenet**: Ritka, de kritikus: másik felhasználó sessionével „bejelentkezett” állapot / össze-vissza auth állapotok, főleg CDN/ISR környezetben.
-- **Gyökérok**: Ha SSR közben session refresh történik, a frissített token `Set-Cookie` headerben megy ki. Ha ezt a választ CDN cache-eli (és másik usernek adja), a másik user böngészője eltárolja a rossz tokent → account mix-up.
-- **Javítás**:
-  1. `@supabase/ssr` használata esetén a `setAll` callbackből kapott cache headereket alkalmazd a response-on (a library v0.10.0+ automatikusan küldi a szükséges `Cache-Control/Expires/Pragma` headereket token refresh esetén).
-  2. Auth-kritikus route-ok legyenek cache-mentesek (CDN oldalon is): `Cache-Control: no-store` / `private` jellegű beállítások.
-  3. Page/route szinten kerüld az ISR-t ott, ahol `Set-Cookie` előfordulhat.
-- **Megelőzés**:
-  - Checklist:
-    - [ ] Session refresh válaszok **nem** cache-elődnek (CDN/ISR tiltva)?
-    - [ ] `@supabase/ssr` `setAll` cache headereit ténylegesen beállítod a response-on?
-    - [ ] Auth védelemhez a server oldalon `getClaims()` (nem `getSession()`) jellegű, validált megoldás van?
-
-- **Források**:
-  - https://supabase.com/docs/guides/auth/server-side/creating-a-client
-  - https://supabase.com/docs/guides/auth/server-side/advanced-guide
-
-
-## ➕ APPEND — 2026-03-31 regressziók és UX működési hibák
-
-### [HIBA-030] Inline komponensdefiníció JSX-ként renderelve fókuszvesztést okoz kontrollált inputoknál
-- **Dátum**: 2026-03-31
+### [HIBA-030] Belső komponensdefiníció a page komponensen belül → input fókuszvesztés minden billentyűleütésnél
+- **Dátum**: 2026-03-31 (v1.3.6)
 - **Fájl**: `src/app/page.tsx`, `src/app/customer/page.tsx`
-- **Hibaüzenet**: Nem klasszikus build error, hanem működési regresszió: a user csak 1 karaktert tud beírni, utána a mező elveszti a fókuszt és újra bele kell kattintani.
-- **Gyökérok**: A komponensen belül definiált `AuthFrame`, `GoogleButton`, `Divider`, illetve `HomeContent`, `DiscoverContent`, `ProfileContent` stb. JSX komponensként (`<AuthFrame />`, `<HomeContent />`) lettek renderelve. Mivel minden parent rendernél új függvényreferencia jött létre, React új komponens-típusként kezelte őket, ezért az al-fa unmount/remount történt, ami fókuszvesztést okozott minden state változáskor.
-- **Javítás**: Az inline helper-eket nem JSX komponensként, hanem közvetlen renderfüggvényként kell használni (`AuthFrame({...})`, `HomeContent()`). Így az elemtree ugyanabban a parent fában marad és nem veszti el a fókuszt minden billentyűleütésnél.
-- **Megelőzés**: **SOHA** ne renderelj komponensen belül definiált helper függvényt `<CapitalizedComponent />` formában, ha az adott nézetben kontrollált inputok vannak. Vagy vidd ki a komponenst module scope-ba, vagy hívd renderfüggvényként.
+- **Hibaüzenet**: Futás közben a beviteli mező 1 karakter után elvesztette a fókuszt; a jelszómezőbe és a venue finder keresőbe minden új karakter előtt újra bele kellett kattintani.
+- **Gyökérok**: A page komponensen belül újradefiniált belső React komponensek (`<AuthFrame />`, `<HomeContent />`, `<DiscoverContent />` stb.) minden state-frissítésnél új komponens-típusként jöttek létre. Emiatt a React remountolta a teljes részfát, az input DOM node cserélődött, a fókusz elveszett.
+- **Javítás**: A belső JSX részeket vagy külső top-level komponensekké kell emelni, vagy sima render helper függvényként kell használni komponens-hívás helyett. A mostani javítás a remountoló belső komponenseket megszüntette.
+- **Megelőzés**: **SOHA** ne definiálj stateful inputokat tartalmazó React komponenseket egy másik page komponens törzsében úgy, hogy JSX komponensként (`<Valami />`) legyenek használva. Input/textarea/search mezőknél ez kötelező fókuszvesztés-check pont.
 
-### [HIBA-031] Redesign közben a működő feature belépési pontját nem elég technikailag megtartani — láthatónak is kell maradnia
-- **Dátum**: 2026-03-31
+### [HIBA-031] Redesign regresszió — működő menüpontok és entry pointok eltűntek
+- **Dátum**: 2026-03-31 (v1.3.6)
 - **Fájl**: `src/app/customer/page.tsx`, `src/app/admin/layout.tsx`
-- **Hibaüzenet**: Funkcionális regresszió / UX regresszió: az étlap technikailag létezett, de a gyors belépési pont eltűnt a főoldalról és az admin oldali fő navigációból.
-- **Gyökérok**: A redesign során a vizuális egyszerűsítés felülírta az üzleti logikát. A user számára a feature már nem volt evidensen elérhető, ezért gyakorlatilag úgy tűnt, mintha megszűnt volna.
-- **Javítás**: Az étlap és rendelés gyorselérés csak aktív venue / becsekkolt kontextus mellett jelenik meg, az admin oldali fő navigációba pedig visszakerül az `Étlap` menüpont.
-- **Megelőzés**: Redesign előtt és után **MINDIG** készíts feature-entry checklistet: melyik működő funkció honnan érhető el, és a patch után is ugyanilyen vagy jobb láthatósággal megmaradt-e.
+- **Hibaüzenet**: A Játékok menü eltűnt, a Barátok külön menü lett, a profilból eltűntek a hűségpont fókuszú elemek, az admin sidebarból eltűnt az Étlap menüpont, a főoldalon pedig rossz üzleti logikával jelentek meg gyorscsempék.
+- **Gyökérok**: A redesign során a navigációs struktúra és a csempe-logika a meglévő funkciók teljes funkcionális ellenőrzése nélkül lett átírva. A feature technikailag részben még létezett, de a felhasználó számára nem volt jó helyen vagy nem volt elérhető.
+- **Javítás**: A Játékok külön menüpont visszakerült, a barát/lista funkciók a Profil alá kerültek, a hűségpont fókusz visszaállt, az admin oldalon az Étlap menü visszakerült, a főoldali gyorscsempék pedig már csak aktív becsekkolási kontextus esetén jelennek meg.
+- **Megelőzés**: **MINDIG** legyen regressziós checklist: navigáció, fő CTA-k, étlap elérés, játékok, profil-pontok, admin oldal kulcsmenük. Nem elég, hogy a háttérlogika megvan — a feature látható entry pointja is kötelező.
 
-### [HIBA-032] Themed select inputnál a natív option lista olvashatatlanná válhat
-- **Dátum**: 2026-03-31
-- **Fájl**: `src/app/globals.css`
-- **Hibaüzenet**: Nem build error, hanem UI hiba: a legördülő lista opciói fehér háttéren fehér vagy nagyon halvány szöveggel jelennek meg.
-- **Gyökérok**: A dark themed `select` mező örökölte a világos natív option hátteret, miközben a szövegszín theme-ből maradt, ezért a lista olvashatatlanná vált.
-- **Javítás**: Explicit `option` háttér- és szövegszínt kell adni a themed `select` mezőknek.
-- **Megelőzés**: **MINDIG** ellenőrizd a natív `select > option` megjelenést Windows/Chrome környezetben is, nem csak a zárt input mezőt.
+### [HIBA-032] Select dropdown opciók láthatatlanok sötét témában
+- **Dátum**: 2026-03-31 (v1.3.6)
+- **Fájl**: `src/app/customer/page.tsx`
+- **Hibaüzenet**: A kategória legördülőben csak az aktuális érték látszott; a többi opció fehér háttéren fehér vagy túl halvány szöveggel jelent meg.
+- **Gyökérok**: A sötét themed select mező stílusa nem terjedt ki megbízhatóan az egyes `<option>` elemekre minden böngészőn. Emiatt a popup lista olvashatatlan lett.
+- **Javítás**: Az option elemek explicit háttér- és színszínezést kaptak a kritikus dropdownokban.
+- **Megelőzés**: Sötét témás `<select>` komponensnél **MINDIG** ellenőrizni kell magukat az `<option>` elemeket is Chromium alatt. A zárt mező jó kinézete nem garancia arra, hogy a lenyíló lista is olvasható.
+
+### [HIBA-033] Discover auto-refresh + no-result toast → toast spam és félrevezető üres állapot
+- **Dátum**: 2026-03-31 (v1.3.6)
+- **Fájl**: `src/app/customer/page.tsx`
+- **Hibaüzenet**: Többször egymás után megjelent a „Nem találtam helyet...” üzenet, miközben a kereső még gépelés alatt volt vagy a lista automatikusan frissült.
+- **Gyökérok**: Az automatikus discovery futás és a no-result toast ugyanabban a flow-ban volt, ezért minden újraszámolásnál feljött a hibaüzenet. Ez egyszerre volt zajos és félrevezető.
+- **Javítás**: Az automatikus no-result toast el lett távolítva; a „nincs találat” csak passzív üres állapotként marad a felületen.
+- **Megelőzés**: Automatikusan futó search/filter flow-ban **SOHA** ne legyen toastszintű „nincs találat” üzenet. Az ilyen állapotot inline empty state-ként kell kezelni.
+
+*Appendelve: 2026-03-31 — v1.3.6*

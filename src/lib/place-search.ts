@@ -1,3 +1,4 @@
+
 import { supabase } from '@/lib/supabase'
 
 export interface PlaceSearchParams {
@@ -93,8 +94,26 @@ async function searchCachedPlaces(params: PlaceSearchParams): Promise<ExternalPl
   if (error) return []
 
   const rows: any[] = Array.isArray(data) ? data : []
+  return rows.map((row: any) => normalizeExternalPlace(row)).filter((row: ExternalPlace) => Boolean(row.external_id))
+}
+
+async function invokePlaceSearch(body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke('place-search', { body })
+  if (error) return { rows: [] as ExternalPlace[], error: error.message }
+
+  if (data && typeof data === 'object' && typeof (data as { error?: unknown }).error === 'string') {
+    return { rows: [] as ExternalPlace[], error: String((data as { error: string }).error) }
+  }
+
+  const rows: any[] = Array.isArray(data?.results)
+    ? data.results
+    : Array.isArray(data)
+      ? data
+      : []
+
   const normalizedRows: ExternalPlace[] = rows.map((row: any) => normalizeExternalPlace(row))
-  return normalizedRows.filter((row: ExternalPlace) => Boolean(row.external_id))
+  const filteredRows: ExternalPlace[] = normalizedRows.filter((row: ExternalPlace) => Boolean(row.external_id))
+  return { rows: filteredRows, error: null as string | null }
 }
 
 export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalPlace[]> {
@@ -108,32 +127,22 @@ export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalP
     limit: params.limit ?? 24,
   }
 
-  const { data, error } = await supabase.functions.invoke('place-search', {
-    body: payload,
-  })
+  const primary = await invokePlaceSearch(payload)
+  if (primary.rows.length > 0) return primary.rows
 
-  if (error) {
-    console.warn('[place-search] edge function unavailable:', error.message)
-    return searchCachedPlaces(params)
+  // Broader retry if category/openNow combination is too restrictive.
+  if ((params.query || '').trim()) {
+    const fallback = await invokePlaceSearch({
+      query: params.query || '',
+      latitude: params.latitude,
+      longitude: params.longitude,
+      radius_km: params.radiusKm ?? 10,
+      open_now: false,
+      limit: params.limit ?? 24,
+    })
+    if (fallback.rows.length > 0) return fallback.rows
   }
 
-  if (data && typeof data === 'object' && typeof (data as { error?: unknown }).error === 'string') {
-    console.warn('[place-search] edge function returned error payload:', (data as { error: string }).error)
-    return searchCachedPlaces(params)
-  }
-
-  const rows: any[] = Array.isArray(data?.results)
-    ? data.results
-    : Array.isArray(data)
-      ? data
-      : []
-
-  const normalizedRows: ExternalPlace[] = rows.map((row: any) => normalizeExternalPlace(row))
-  const filteredRows: ExternalPlace[] = normalizedRows.filter((row: ExternalPlace) => Boolean(row.external_id))
-
-  if (filteredRows.length > 0) {
-    return filteredRows
-  }
-
-  return searchCachedPlaces(params)
+  const cached = await searchCachedPlaces(params)
+  return cached
 }

@@ -67,3 +67,47 @@ Minden változtatás dátummal és leírással.
 - Supabase auth + RLS
 - Valós idejű rendeléskezelés (Realtime)
 - PWA manifest
+
+
+---
+
+## [1.3.6] — 2026-03-31
+
+### 🐛 Regressziójavítások
+- **Input fókuszvesztés javítva** a bejelentkezési / regisztrációs / venue finder mezőkön
+  - a page komponenseken belüli remountoló belső komponensek megszüntetve
+  - a kereső- és jelszómezők már nem halnak meg 1 karakter után
+- **Venue finder stabilizálva**
+  - megszűnt a többször egymásra dobott „Nincs találat” toast
+  - a kereső már csak inline empty state-et mutat
+  - a kliens oldali keresés szélesebb fallbackgel hívja a `place-search` edge functiont
+- **Select dropdown olvashatóság javítva**
+  - a sötét témás option elemek explicit színt kaptak
+- **Aktív becsekkolási logika visszaállítva**
+  - a főoldali gyorselérés csempék csak aktív venue / asztal kontextus esetén látszanak
+  - a becsekkolt venue neve és asztalszáma megjelenik
+  - a scan és venue oldalak elmentik a becsekkolt kontextust
+
+### ♻️ Visszatett korábbi funkciók
+- **Játékok menü visszaállítva**
+  - a külön Barátok menü helyére visszakerült a **Játékok** menüpont
+  - ismét elérhető: kocsmakvíz / dice / igazság vagy mersz / részegségmérő
+- **Barátok és közös listák** visszarakva a **Profil** oldal aljára
+- **Hűségpont fókusz** visszaállítva a Profil oldalon
+- **Egyéni ajánlataim** blokk hozzáadva a Profil oldalhoz
+- **Admin oldali Étlap menüpont** visszaállítva az oldalsávba
+- **Digitális étlap belépési pont** megőrizve és visszahangsúlyozva a vendég oldalon
+
+### 🔧 Technikai
+- `src/app/page.tsx` auth képernyő refaktor a fókuszvesztés megszüntetésére
+- `src/app/customer/page.tsx` teljes regressziófix:
+  - tabstruktúra helyreállítás
+  - discover / games / profile logika rendezése
+  - check-in context kezelés
+- `src/components/PlaceAutocomplete.tsx` stabilabb controlled input viselkedés
+- `src/app/customer/scan/page.tsx` és `src/app/customer/pub/[id]/page.tsx` aktív venue context mentés
+- `src/lib/place-search.ts` szélesebb fallback keresés
+- `supabase/functions/place-search/index.ts` szélesebb provider lekérés és jobb geocode/nearby összevonás
+
+### 📝 Megjegyzés
+- Ez a kiadás kifejezetten a korábban működő funkciók visszaállítására és a redesign regressziók megszüntetésére készült.

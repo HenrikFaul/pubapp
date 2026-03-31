@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -33,6 +34,7 @@ export default function PlaceAutocomplete({
   const [results, setResults] = useState<ExternalPlace[]>([])
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
 
   const query = typeof value === 'string' ? value : internalQuery
   const canSearch = useMemo(() => query.trim().length >= 2, [query])
@@ -53,6 +55,8 @@ export default function PlaceAutocomplete({
   useEffect(() => {
     if (!canSearch) {
       setResults([])
+      setLoading(false)
+      setHasSearched(false)
       return
     }
 
@@ -69,8 +73,9 @@ export default function PlaceAutocomplete({
       })
       setResults(data)
       setOpen(true)
+      setHasSearched(true)
       setLoading(false)
-    }, 280)
+    }, 320)
 
     return () => window.clearTimeout(timer)
   }, [canSearch, query, category, openNow, radiusKm, latitude, longitude])
@@ -83,14 +88,18 @@ export default function PlaceAutocomplete({
         </span>
         <input
           value={query}
-          autoComplete="off"
-          onFocus={() => setOpen(true)}
-          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+          onFocus={() => {
+            if (canSearch || loading) setOpen(true)
+          }}
           onChange={(event) => updateQuery(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && query.trim().length >= 2) {
               event.preventDefault()
+              setOpen(false)
               onSubmit?.(query.trim())
+            }
+            if (event.key === 'Escape') {
+              setOpen(false)
             }
           }}
           placeholder={placeholder}
@@ -102,6 +111,7 @@ export default function PlaceAutocomplete({
             onClick={() => {
               updateQuery('')
               setResults([])
+              setHasSearched(false)
               setOpen(false)
             }}
             className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-white/5 p-1 text-white/40 transition hover:text-white"
@@ -111,11 +121,11 @@ export default function PlaceAutocomplete({
         )}
       </div>
 
-      {open && (query.trim() || loading) && (
+      {open && canSearch && (
         <div className="absolute left-0 right-0 top-[calc(100%+10px)] z-30 overflow-hidden rounded-[24px] border border-white/10 bg-[rgba(11,16,26,0.96)] shadow-2xl backdrop-blur-xl">
           {loading ? (
             <div className="px-4 py-4 text-sm text-white/50">Keresés folyamatban…</div>
-          ) : results.length === 0 ? (
+          ) : results.length === 0 && hasSearched ? (
             <div className="px-4 py-4 text-sm text-white/50">Nincs találat a keresésre.</div>
           ) : (
             <div className="max-h-80 overflow-y-auto">
