@@ -112,37 +112,43 @@ Minden változtatás dátummal és leírással.
 ### 📝 Megjegyzés
 - Ez a kiadás kifejezetten a korábban működő funkciók visszaállítására és a redesign regressziók megszüntetésére készült.
 
-
 ---
 
-## [1.3.9] — 2026-04-01
+## [1.4.0] — 2026-04-01
 
-### Hivatkozások
-- Versioning: `versioning/13903921_v1.3.9_ai_dev_prompts.md`
+### 🗺️ Hungary local-first venue catalog
+- **Új helyi venue-katalógus**: `places_hu_catalog` tábla a magyarországi venue / POI adatokhoz
+- **Új lokális kereső RPC**: `search_hungary_places(...)` a gyors, adatbázis-alapú venue finderhez
+- **Új sync állapot tábla**: `place_sync_state` a batch alapú országos frissítés cursorának tárolására
+- **Új batch sync edge function**: `supabase/functions/sync-hu-places/index.ts`
+  - Magyarország bounding box csempézése
+  - Geoapify és TomTom batch letöltések
+  - offsetes oldallapozás
+  - helyi upsert a `places_hu_catalog` táblába
+- **Napi frissítéshez ütemező helper**: `schedule_hu_place_sync(project_url, anon_key, schedule)` SQL függvény
+  - alapértelmezett ütemezés: 15 percenként futó batch, amely 24 órán belül végigviszi a teljes országos ciklust
 
-### 🐛 Hibajavítások — Venue finder és address search
+### 🐛 Venue finder javítások
+- A venue finder többé **nem élő provider keresésre épül kizárólagosan**
+- A `place-search` edge function mostantól:
+  - először a lokális magyar venue-katalógusból keres
+  - csak bootstrap helyzetben használ provider fallbacket
+  - automatikusan háttérben elindít syncet, ha a katalógus üres vagy 24 óránál régebbi
+- A `src/lib/place-search.ts` kliens helper mostantól local-first fallback logikát használ
+- A külső provider hibák többé nem nullázzák le automatikusan a venue finder teljes eredményét
 
-#### `supabase/functions/place-search/index.ts`
+### 📚 Folyamat és dokumentáció
+- A `codingLessonsLearnt.md` elejére bekerült a kötelező webkutatás + gyökérokelemzés + koncepciótesztelés módszertan
+- Új versioning fájlpár létrehozva:
+  - `versioning/14000041_v1.4.0_business_request_summary.pdf`
+  - `versioning/14000041_v1.4.0_ai_dev_prompts.md`
+- Ez a changelog bejegyzés ezekre a versioning fájlokra hivatkozik
 
-- **[HIBA-034] Geoapify `name` paraméter javítva** — A Places API v2 endpoint-on a `text` param csendben figyelmen kívül volt hagyva (geocoding API param). Lecserélve `name`-re, ami a Places v2 dokumentált POI névszűrő paramétere. A két Geoapify mód szét lett választva: `searchGeoapifyByName()` (name-filtered) és `searchGeoapifyNearby()` (pure category nearby).
-
-- **[HIBA-035] TomTom `fuzzySearch` by-name / `poiSearch` nearby szétválasztás** — A korábbi kód `"BUDAPEST restaurant"` kombináció-t adott poiSearch-nek, ami 0 találatot eredményezett. A javítás: két önálló TomTom hívás: `searchTomTomByName()` (`fuzzySearch/{query}`) szabad szöveges névkereséshez, `searchTomTomNearby()` (`poiSearch/{category}`) csak kategória alapú közelségi kereséshez.
-
-- **[HIBA-036] Score-alapú relevancia szűrő** — A hard `textMatchesQuery()` filter cserélve score + lenient fallback stratégiára. Score 3 = névegyezés, score 2 = cím/városegyezés, score 1 = részleges szóegyezés. Ha egyik sem egyezik, az összes találat megmarad (távolság szerint rendezve). A végeredmény soha nem üres puszta szűrési hiba miatt.
-
-- **[HIBA-037] `open_now` filter javítva** — `open_now === true || !Array.isArray(...)` → `open_now !== false`. Az ismeretlen nyitvatartású helyszínek (`null`/`undefined`) többé nem esnek ki.
-
-- **`_debug` mező hozzáadva** a response-hoz: query, resolvedCenter, providerCounts, returned — debug-safe, a klienst nem befolyásolja.
-
-#### `src/lib/place-search.ts`
-
-- **[HIBA-038] Kliensoldali szűrés eltávolítva** az edge function eredményéről — a normalizálás és `external_id` check megmaradt, de az edge function már elvégzi a relevancia-szűrést.
-
-- **Fallback lépcsők bővítve** (3+cache): open_now ejtés → category ejtés → coordinates ejtés → places_cache. Minden lépésnél csak akkor lép a következőre, ha ténylegesen 0 a találat.
-
-### ✅ Regresszióvédelmi checklist
-- [x] `PlaceAutocomplete` publikus API nem sérült
-- [x] Vendégoldali többi funkció (játékok, profil, rendelések, QR flow) nem módosítva
-- [x] Admin oldali navigáció és étlapkezelés nem módosítva
-- [x] Fókuszvesztéses komponensminta (HIBA-030) nem kerül vissza
-- [x] Toast spam (HIBA-033) nem kerül vissza
+### ✅ Ellenőrzési checklist ehhez a kiadáshoz
+- [x] `codingLessonsLearnt.md` beolvasva
+- [x] `changelog.md` beolvasva
+- [x] Hivatalos internetes dokumentációk átnézve (Geoapify, TomTom, Supabase)
+- [x] A venue finder hibájának gyökérokelemzése megtörtént
+- [x] A provider-only keresés helyett local-first megoldás került be
+- [x] A napi / folyamatos frissítéshez szükséges batch sync architektúra elkészült
+- [x] A szállítás csak a cserélendő fájlokat tartalmazza

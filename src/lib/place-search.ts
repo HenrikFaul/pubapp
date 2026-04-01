@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabase'
 
 export interface PlaceSearchParams {
@@ -16,6 +15,7 @@ export interface ExternalPlace {
   provider: string
   name: string
   category?: string
+  categories?: string[]
   address?: string
   city?: string
   postal_code?: string
@@ -50,6 +50,7 @@ export function normalizeExternalPlace(raw: any): ExternalPlace {
     provider: String(raw?.provider || raw?.source || 'external'),
     name: String(raw?.name || raw?.title || 'Ismeretlen hely'),
     category: raw?.category || raw?.subcategory || raw?.class_name || raw?.type,
+    categories: Array.isArray(raw?.categories) ? raw.categories : [],
     address: raw?.address || raw?.formatted || raw?.formatted_address || raw?.freeformAddress,
     city: raw?.city,
     postal_code: raw?.postal_code || raw?.postcode,
@@ -74,30 +75,37 @@ export function normalizeExternalPlace(raw: any): ExternalPlace {
   }
 }
 
-async function searchCachedPlaces(params: PlaceSearchParams): Promise<ExternalPlace[]> {
-  let request = supabase
-    .from('places_cache')
-    .select('*')
-    .order('updated_at', { ascending: false })
-    .limit(Math.min(Math.max(params.limit || 24, 1), 48))
-
-  if (params.category) {
-    request = request.ilike('category', `%${params.category}%`)
+function dedupePlaces(rows: ExternalPlace[]) {
+  const seen = new Map<string, ExternalPlace>()
+  for (const row of rows) {
+    const key = `${row.name.toLowerCase()}|${(row.address || '').toLowerCase()}|${Math.round((row.latitude || 0) * 1000)}|${Math.round((row.longitude || 0) * 1000)}`
+    const current = seen.get(key)
+    const currentScore = (typeof current?.rating === 'number' ? current.rating : 0) + (current?.image_url ? 1 : 0)
+    const nextScore = (typeof row.rating === 'number' ? row.rating : 0) + (row.image_url ? 1 : 0)
+    if (!current || nextScore >= currentScore) {
+      seen.set(key, row)
+    }
   }
-
-  if (params.query?.trim()) {
-    const safeQuery = params.query.trim().replace(/[%_]/g, '')
-    request = request.or(`name.ilike.%${safeQuery}%,address.ilike.%${safeQuery}%,city.ilike.%${safeQuery}%`)
-  }
-
-  const { data, error } = await request
-  if (error) return []
-
-  const rows: any[] = Array.isArray(data) ? data : []
-  return rows.map((row: any) => normalizeExternalPlace(row)).filter((row: ExternalPlace) => Boolean(row.external_id))
+  return Array.from(seen.values())
 }
 
-async function invokePlaceSearch(body: Record<string, unknown>): Promise<{ rows: ExternalPlace[]; error: string | null }> {
+async function searchLocalCatalog(params: PlaceSearchParams): Promise<ExternalPlace[]> {
+  const { data, error } = await supabase.rpc('search_hungary_places', {
+    p_query: params.query?.trim() || null,
+    p_category: params.category?.trim() || null,
+    p_lat: typeof params.latitude === 'number' ? params.latitude : null,
+    p_lon: typeof params.longitude === 'number' ? params.longitude : null,
+    p_radius_km: params.radiusKm ?? 25,
+    p_open_now: params.openNow ?? false,
+    p_limit: params.limit ?? 48,
+  })
+
+  if (error) return []
+  const rows: any[] = Array.isArray(data) ? data : []
+  return dedupePlaces(rows.map((row: any) => normalizeExternalPlace(row)).filter((row: ExternalPlace) => Boolean(row.external_id)))
+}
+
+async function invokePlaceSearch(body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke('place-search', { body })
   if (error) return { rows: [] as ExternalPlace[], error: error.message }
 
@@ -105,17 +113,15 @@ async function invokePlaceSearch(body: Record<string, unknown>): Promise<{ rows:
     return { rows: [] as ExternalPlace[], error: String((data as { error: string }).error) }
   }
 
-  const rows: any[] = Array.isArray(data?.results)
-    ? data.results
+  const rows: any[] = Array.isArray((data as any)?.results)
+    ? (data as any).results
     : Array.isArray(data)
       ? data
       : []
 
   const normalizedRows: ExternalPlace[] = rows.map((row: any) => normalizeExternalPlace(row))
-  // Only filter out rows missing external_id — do NOT apply additional text filtering here.
-  // The edge function already applies score-based relevance filtering.
-  const validRows: ExternalPlace[] = normalizedRows.filter((row: ExternalPlace) => Boolean(row.external_id))
-  return { rows: validRows, error: null }
+  const filteredRows: ExternalPlace[] = normalizedRows.filter((row: ExternalPlace) => Boolean(row.external_id))
+  return { rows: dedupePlaces(filteredRows), error: null as string | null }
 }
 
 export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalPlace[]> {
@@ -124,50 +130,14 @@ export async function searchPlaces(params: PlaceSearchParams): Promise<ExternalP
     category: params.category || '',
     latitude: params.latitude,
     longitude: params.longitude,
-    radius_km: params.radiusKm ?? 10,
+    radius_km: params.radiusKm ?? 25,
     open_now: params.openNow ?? false,
-    limit: params.limit ?? 24,
+    limit: params.limit ?? 48,
   }
 
-  // Primary: full search with all params
   const primary = await invokePlaceSearch(payload)
   if (primary.rows.length > 0) return primary.rows
 
-  // Fallback 1: drop the open_now constraint if it was active
-  if (params.openNow) {
-    const fallbackOpenNow = await invokePlaceSearch({
-      ...payload,
-      open_now: false,
-    })
-    if (fallbackOpenNow.rows.length > 0) return fallbackOpenNow.rows
-  }
-
-  // Fallback 2: drop the category constraint if there was one
-  if ((params.query || '').trim() && params.category) {
-    const fallbackNoCategory = await invokePlaceSearch({
-      query: params.query || '',
-      latitude: params.latitude,
-      longitude: params.longitude,
-      radius_km: params.radiusKm ?? 10,
-      open_now: false,
-      limit: params.limit ?? 24,
-    })
-    if (fallbackNoCategory.rows.length > 0) return fallbackNoCategory.rows
-  }
-
-  // Fallback 3: drop coordinates (query-only, let edge function geocode)
-  if ((params.query || '').trim() && (params.latitude || params.longitude)) {
-    const fallbackNoCoords = await invokePlaceSearch({
-      query: params.query || '',
-      category: params.category || '',
-      radius_km: params.radiusKm ?? 10,
-      open_now: false,
-      limit: params.limit ?? 24,
-    })
-    if (fallbackNoCoords.rows.length > 0) return fallbackNoCoords.rows
-  }
-
-  // Last resort: local places_cache table
-  const cached = await searchCachedPlaces(params)
-  return cached
+  const localFallback = await searchLocalCatalog(params)
+  return localFallback
 }

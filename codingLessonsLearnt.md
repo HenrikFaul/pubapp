@@ -1,5 +1,29 @@
 # LEGFONTOSABB: SEMMILYEN MÁR JÓL MŰKÖDŐ FUNKCIÓT NEM SZABAD ELRONTANI.
 
+## 🔒 KÖTELEZŐ JAVÍTÁSI / FEJLESZTÉSI PROMPT MINDEN JÖVŐBENI MUNKÁHOZ
+
+**MINDEN új fejlesztés vagy hibajavítás indulása előtt szó szerint ez legyen a mentális / AI prompt:**
+
+> Először olvasd el a `codingLessonsLearnt.md` és a `changelog.md` fájlokat. Ezután az újonnan megfogalmazott üzleti követelmény vagy hibajavítás érdekében gyűjtsd össze az összes szükséges tudást megbízható, elsődleges internetes forrásokból. A gyökérokot előbb detektáld, ne találgass. Készíts több megoldási koncepciót, ezeket teszteld vagy validáld, és a leghatékonyabb, legkisebb regressziós kockázatú megoldást válaszd. Fejlesztés közben ne módosíts olyan működő funkciót, amit a kérés nem érint. A végén checklist alapján ellenőrizd, hogy minden kérés teljesült, és egyetlen korábban működő feature sem sérült.
+
+### Kötelező munkalépések minden feladat előtt
+1. `codingLessonsLearnt.md` teljes beolvasása
+2. `changelog.md` teljes beolvasása
+3. Internetes tudásgyűjtés **elsődleges forrásokból** a hibadetektáláshoz / megoldáshoz
+4. Gyökérokelemzés és kizárásos hibadetektálás
+5. Legalább 2 megoldási koncepció összevetése
+6. A legkisebb regressziós kockázatú megoldás kiválasztása
+7. Fejlesztés közbeni checklist alapú scope-kontroll
+8. Fejlesztés végi explicit regresszió-ellenőrzés
+
+### Kötelező záró checklist minden feladat végén
+- [ ] Csak az érintett scope-ban módosítottam?
+- [ ] Nem nyúltam olyan működő funkcióhoz, amit a kérés nem érintett?
+- [ ] A `codingLessonsLearnt.md` korábbi hibamintáit nem követtem el újra?
+- [ ] A `changelog.md` frissült?
+- [ ] Elkészült az aktuális versioning PDF + MD fájlpár?
+- [ ] A végső szállítás csak a cserélendő fájlokat tartalmazza?
+
 # codingLessonsLearnt.md — Kapakka PubApp
 
 ## ⚠️ UTASÍTÁSOK (MINDIG OLVASD EL ELŐSZÖR!)
@@ -203,50 +227,21 @@
 
 *Appendelve: 2026-03-31 — v1.3.6*
 
----
 
-## ➕ APPEND — 2026-04-01 — v1.3.9 — Venue finder / place-search javítások
+## ➕ APPEND — 2026-04-01 local-first Hungary venue sync
 
-### [HIBA-034] Geoapify Places API v2 — `text` paraméter csendben figyelmen kívül van hagyva
-- **Dátum**: 2026-04-01 (v1.3.9)
-- **Fájl**: `supabase/functions/place-search/index.ts`
-- **Hibaüzenet**: Venue névkeresés nem adott találatot, bár a Places API kérés sikeres volt (HTTP 200).
-- **Gyökérok**: A `https://api.geoapify.com/v2/places` endpoint **nem** ismeri a `text` paramétert — az a geocoding API-hoz tartozik (`/v1/geocode/search`). A Places API v2-ben a POI névszűrés paramétere `name`. Mivel `text` csendben figyelmen kívül volt hagyva, az endpoint kategória+terület alapján adott vissza találatokat, de a névszűrés teljesen kimaradt.
-- **Javítás**: `&text=...` helyett `&name=...` paraméter a Places API hívásban. A két Geoapify keresési mód (névszűrt + pure nearby) külön függvénybe lett szétválasztva: `searchGeoapifyByName()` és `searchGeoapifyNearby()`.
-- **Megelőzés**: **MINDIG** a Places API v2 dokumentációját ellenőrizd, NE a geocoding API dokumentációját. A két API más paramétereket fogad el. Szöveg alapú POI névszűrés = `name`, geocode query = `text`.
+### [HIBA-034] Provider-alapú élő keresés önmagában törékeny venue finderhez
+- **Dátum**: 2026-04-01 (v1.4.0)
+- **Fájl**: `src/lib/place-search.ts`, `supabase/functions/place-search/index.ts`
+- **Hibaüzenet**: Futás közben a venue finder egyetlen találatot sem adott, miközben a provider API-k elvileg tudtak volna venue-ket visszaadni.
+- **Gyökérok**: A kliensoldali keresés közvetlenül a provider-hívó edge functionre támaszkodott, ezért a találatadás függött a külső API-válaszok, a geokódolás, a végső szűrés és a pillanatnyi hálózati állapot együttes sikerétől. Egyetlen gyenge láncszem is teljes üres állapothoz vezethetett.
+- **Javítás**: A venue finder elsődleges adatforrása helyi adatbázis-katalógus lett (`places_hu_catalog`), és a keresés lokális RPC-n keresztül történik. A provider-hívás csak bootstrap / szinkronizációs szerepet kapott.
+- **Megelőzés**: **SOHA** ne épüljön kritikus, felhasználói venue finder kizárólag élő third-party keresésre. Nagy lefedettségű listing kereséshez local-first katalogizálás kell, a third-party API pedig szinkronizációra vagy enrichmentre való.
 
-### [HIBA-035] TomTom poiSearch — text + category kombinálása nullázza a találatokat
-- **Dátum**: 2026-04-01 (v1.3.9)
-- **Fájl**: `supabase/functions/place-search/index.ts`
-- **Hibaüzenet**: `poiSearch/"BUDAPEST restaurant"` → 0 találat, bár a területen rengeteg étterem van.
-- **Gyökérok**: A korábbi kód `searchQuery = textQuery + " " + category` kombinációt adott át a `poiSearch` endpointnak (pl. `"BUDAPEST restaurant"`). A TomTom poiSearch POI *neveket* keres — egy „BUDAPEST restaurant" nevű helyszín nem létezik. A helyes megközelítés: a szöveges query és a kategória alapú közelségi keresés **teljesen különálló** API hívások.
-- **Javítás**: A TomTom keresés két önálló függvényre bontva:
-  - `searchTomTomByName(query)` → `fuzzySearch/{query}` — szöveges névkeresés, opcionális helybias
-  - `searchTomTomNearby(category)` → `poiSearch/{category}` — csak a kategória kulcsszóval, koordináta alapján
-- **Megelőzés**: **SOHA** ne kombinálj szabad szöveges keresési queryt és kategória kulcsszót egyetlen TomTom poiSearch URL-be. A fuzzySearch szabad szövegre, a poiSearch kategória/keyword alapú közelségi keresésre való.
-
-### [HIBA-036] Hard `textMatchesQuery` végszűrő — nullázza a provider találatokat
-- **Dátum**: 2026-04-01 (v1.3.9)
-- **Fájl**: `supabase/functions/place-search/index.ts`
-- **Hibaüzenet**: Keresés „BUDAPEST"-re → 0 találat, bár Geoapify és TomTom is adott vissza eredményt.
-- **Gyökérok**: A `textMatchesQuery()` hard filterként volt alkalmazva a merge utáni listán: csak azok a sorok maradtak, ahol a query szó megjelenik a name/address/city/category mezők valamelyikében. Budapest esetén: ha egy venue neve `"Paprika Bisztró"` és a city mezőben `null` áll (mert a Geoapify nem töltötte ki), és az address-ben is csak `"Váci utca 15"` szerepel (kerület nélkül), akkor a `"budapest"` szó egyikben sem szerepel → a sor kiesett. Ráadásul a TomTom `distance_km` fallback is el volt tévesztve: a távolságot csak akkor számítottuk ki, ha `resolvedCenter` rendelkezésre állt — de az eredmény `distance_km` mezője `undefined` maradt, ezért a `<= max(5, radius)` feltétel is false-ra értékelődött.
-- **Javítás**: Score-alapú relevancia szűrő, három szinttel (3=névegyezés, 2=cím/városegyezés, 1=részleges szóegyezés) + lenient fallback: ha semmi sem kap 1+ pontot, az összes találat megmarad, csak távolság szerint rendezve.
-- **Megelőzés**: Keresési pipeline végén **SOHA** ne legyen hard text filter, amely nullára vághat egy egyébként érvényes találatlistát. Mindig score+fallback stratégiát alkalmazz: elsőbbséget adni a szövegegyezőknek, de a többit is megtartani.
-
-### [HIBA-037] `open_now` filter — `!Array.isArray(opening_hours_text)` mindig false
-- **Dátum**: 2026-04-01 (v1.3.9)
-- **Fájl**: `supabase/functions/place-search/index.ts`
-- **Hibaüzenet**: `open_now: true` szűrővel a lista teljesen üres lett, bár nyitva lévő helyek is kellett volna legyenek benne.
-- **Gyökérok**: A feltétel `row.open_now === true || !Array.isArray(row.opening_hours_text)` — de a mapper mindig `opening_hours_text: []` üres tömböt ad vissza, ezért `Array.isArray(...)` mindig `true`, a negált feltétel mindig `false`. Így az összes olyan venue kiesett, amelyiknek nem volt ismert nyitvatartása.
-- **Javítás**: `row.open_now !== false` — csak az explicit `false` értéket zárja ki, a `null`/`undefined` (ismeretlen) értékű venue-k megmaradnak.
-- **Megelőzés**: Nyitvatartás szűrőnél **MINDIG** az ismeretlen értékeket is vedd figyelembe. `=== true` helyett `!== false` a biztonságos feltétel.
-
-### [HIBA-038] Kliens oldali `invokePlaceSearch` — kettős szűrés a már szűrt edge function eredményén
-- **Dátum**: 2026-04-01 (v1.3.9)
-- **Fájl**: `src/lib/place-search.ts`
-- **Hibaüzenet**: Az edge function helyes eredménnyel tért vissza, de a kliens 0 sort mutatott.
-- **Gyökérok**: A `normalizeExternalPlace()` + `.filter(row => Boolean(row.external_id))` kettős szűrés volt az `invokePlaceSearch()`-ben. Ha egy edge function találat `external_id`-je hiányzott vagy üres string volt (pl. TomTom részleges válasz), a sor kiesett — annak ellenére, hogy a provider találatként visszaadta.
-- **Javítás**: Az `external_id` szűrő megmaradt (üres ID-jű soroknak nincs értelme), de a kliensoldali kódban megszűnt minden egyéb szűrési logika — a szűrés kizárólag az edge function feladata.
-- **Megelőzés**: Ha az edge function már elvégezte a relevancia-szűrést, a kliens **NE** végezzen ugyanolyan vagy szigorúbb szűrést a válaszon. A kliens csak normalizálja és rendereli az adatot.
-
-*Appendelve: 2026-04-01 — v1.3.9*
+### [HIBA-035] Országos venue-katalógushoz batch szinkron + ütemezés kell, nem egyszeri nearby query
+- **Dátum**: 2026-04-01 (v1.4.0)
+- **Fájl**: `supabase/functions/sync-hu-places/index.ts`, `supabase/migrations/002_hungary_places_catalog.sql`
+- **Hibaüzenet**: A teljes magyar venue/POI állomány nem tölthető le megbízhatóan egyetlen nearby searchsel vagy egyetlen nagy országos queryvel.
+- **Gyökérok**: A provider API-k oldalanként limitáltak és földrajzi keresési paraméterekkel dolgoznak. Teljes országos lefedettséghez csempézett (tile-olt), offsetes batch szinkron kell.
+- **Javítás**: Magyarország bounding box csempézésre került, és a szinkron edge function előre generált feladatlistából dolgozik batch-ekben. A napi frissítéshez SQL ütemező helper is készült.
+- **Megelőzés**: Nagy földrajzi datasetnél **MINDIG** tervezz tile + pagination + cursor/state alapú batch szinkront. Ne bízz egyetlen queryben vagy egyetlen provider oldali result page-ben.
