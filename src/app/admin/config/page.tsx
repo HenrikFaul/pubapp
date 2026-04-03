@@ -80,7 +80,7 @@ export default function ConfigPage() {
       }))
     }
 
-    void init()
+    init()
   }, [])
 
   async function saveVenue() {
@@ -113,7 +113,7 @@ export default function ConfigPage() {
       return
     }
     broadcastThemeChange(themeKey)
-    toast.success('Design váltás mentve — redeploy nélkül aktív.')
+    toast.success('Design váltás mentve - redeploy nélkül aktív.')
   }
 
   async function addTable() {
@@ -169,8 +169,8 @@ export default function ConfigPage() {
               <Sparkles className="h-4 w-4" />
               responsive venue configuration
             </div>
-            <h2 className="text-3xl font-bold text-white lg:text-4xl">Teljes venue-üzemeltetés egy helyen.</h2>
-            <p className="mt-3 max-w-3xl text-sm text-white/60">Design, foglalás, automatikus rendelésértesítés, csapatkezelés és QR asztalok. A platformszintű Common Admin innentől külön a Site Admin felületen érhető el.</p>
+            <h2 className="text-3xl font-bold text-white lg:text-4xl">Teljes Kapakka élményvezérlés egy helyen.</h2>
+            <p className="mt-3 max-w-3xl text-sm text-white/60">Design, foglalás, automatikus rendelésértesítés, külső place-discovery és csapatbeállítások redeploy nélkül.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="mini-stat">
@@ -207,7 +207,7 @@ export default function ConfigPage() {
                 {[
                   'Asztalfoglalás engedélyezése és limitjei',
                   'Order update automatikus értesítések',
-                  'Venue profil és elérhetőségek',
+                  'TomTom / Geoapify venue discovery felkészítés',
                   'Design váltás live üzemi módban',
                 ].map((item) => (
                   <div key={item} className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/65">{item}</div>
@@ -215,10 +215,10 @@ export default function ConfigPage() {
               </div>
             </div>
             <div className="admin-card-soft p-5">
-              <div className="flex items-center gap-2 text-white/70"><Info className="h-4 w-4" /> <span className="text-sm font-semibold">Platform admin különválasztva</span></div>
-              <p className="mt-3 text-sm text-white/60">A Common Admin, integrációk, hosting, release snapshot és lokális katalógus operáció innentől a külön Site Admin felületen érhető el.</p>
+              <div className="flex items-center gap-2 text-white/70"><Info className="h-4 w-4" /> <span className="text-sm font-semibold">Venue discovery integráció</span></div>
+              <p className="mt-3 text-sm text-white/60">Az ügyféloldali venue explorer a Supabase edge functiont hívja, ahol Geoapify az elsődleges kereső és TomTom a fallback / enrichment réteg.</p>
               <div className="mt-4 rounded-[22px] border border-white/10 bg-white/5 p-4 text-sm text-white/55">
-                A venue-admin kizárólag az adott vendéglátóhely működtetésére fókuszál: étlap, készlet, rendelések, foglalás, csapat és design.
+                A place-cache, a kedvencek, a közös listák és a rendelésjelző trigger külön migrációban vannak csomagolva, hogy a rollout fokozatosan is végezhető legyen.
               </div>
             </div>
           </div>
@@ -472,7 +472,7 @@ export default function ConfigPage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-lg font-bold text-white">Aktív design kiválasztása</p>
-              <p className="mt-1 text-sm text-white/45">A designváltás mentés után azonnal aktív lesz az alkalmazásban — redeploy nélkül.</p>
+              <p className="mt-1 text-sm text-white/45">A designváltás mentés után azonnal aktív lesz az alkalmazásban - redeploy nélkül.</p>
             </div>
             <button onClick={saveTheme} disabled={themeSaving} className="btn-kapakka w-full lg:w-auto lg:px-6">
               <Check className="h-4 w-4" /> {themeSaving ? 'Mentés…' : 'Design aktiválása'}

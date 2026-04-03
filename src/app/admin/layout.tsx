@@ -67,6 +67,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return
       }
 
+      if (userRole === 'superadmin') {
+        router.replace('/siteadmin')
+        return
+      }
+
       setUser(profile || { id: authUser.id, email: authUser.email, role: userRole })
       setAuthState('ok')
 
@@ -135,7 +140,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="hero-card w-full max-w-xl p-8 text-center">
           <div className="section-kicker mx-auto mb-4 w-fit"><Shield className="h-4 w-4" /> Nincs admin hozzáférés</div>
           <h1 className="section-title">Ez a fiók csak vendég oldalra jogosult.</h1>
-          <p className="section-subtitle mt-3">Ha venue kezelő vagy, a site adminnak kell hozzárendelnie a szerepkört.</p>
+          <p className="section-subtitle mt-3">Ha venue kezelő vagy, a szerepkört a site adminnak kell hozzárendelnie.</p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <button onClick={() => router.push('/customer')} className="btn-kapakka sm:w-auto sm:px-6">Vendég felület</button>
             <button onClick={logout} className="btn-outline sm:w-auto sm:px-6">Kijelentkezés</button>
@@ -144,8 +149,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
     )
   }
-
-  const isSuperAdmin = user?.role === 'superadmin'
 
   return (
     <div className="admin-app">
@@ -170,16 +173,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <p className="mt-2 text-3xl font-black">{pending}</p>
             <p className="mt-1 text-sm text-white/45">élő rendelés vagy pickup státusz</p>
           </div>
-          {isSuperAdmin && (
-            <div className="mt-4 rounded-[20px] border border-violet-400/20 bg-violet-500/10 p-4 text-white">
-              <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">Platform szint</p>
-              <p className="mt-2 text-sm font-semibold text-white">A Site Admin külön felületre került.</p>
-              <p className="mt-1 text-xs text-white/55">A platformszintű common_admin funkciók a venue-admintól elkülönülve érhetők el.</p>
-              <button onClick={() => router.push('/siteadmin')} className="btn-outline mt-3 w-full border-violet-400/30 text-violet-100 hover:bg-violet-500/10">
-                <Shield className="h-4 w-4" /> Site Admin megnyitása
-              </button>
-            </div>
-          )}
         </div>
 
         <nav className="flex-1 space-y-2 overflow-y-auto pr-1">

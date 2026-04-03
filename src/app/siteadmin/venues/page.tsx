@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { formatPrice, timeAgo } from '@/lib/utils'
-import { Search, Store, MapPin, Star, ShoppingBag, ToggleLeft, ToggleRight, ChevronRight, LayoutDashboard } from 'lucide-react'
+import { ArrowLeft, Search, Store, MapPin, Star, ShoppingBag, ToggleLeft, ToggleRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function VenuesPage() {
@@ -14,40 +14,45 @@ export default function VenuesPage() {
   const [venueStats, setVenueStats] = useState<Record<string, { orders: number; revenue: number }>>({})
 
   useEffect(() => {
-    async function fetch() {
-      const { data: v } = await supabase.from('venues')
+    async function fetchData() {
+      const { data: v } = await supabase
+        .from('venues')
         .select('*, owner:profiles(full_name, email)')
         .order('created_at', { ascending: false })
       setVenues(v || [])
 
-      const { data: orders } = await supabase.from('orders')
+      const { data: orders } = await supabase
+        .from('orders')
         .select('venue_id, total')
         .not('status', 'eq', 'cancelled')
 
       const statsMap: Record<string, { orders: number; revenue: number }> = {}
-      orders?.forEach(o => {
+      orders?.forEach((o: any) => {
         if (!statsMap[o.venue_id]) statsMap[o.venue_id] = { orders: 0, revenue: 0 }
-        statsMap[o.venue_id].orders++
+        statsMap[o.venue_id].orders += 1
         statsMap[o.venue_id].revenue += o.total || 0
       })
       setVenueStats(statsMap)
       setLoading(false)
     }
-    fetch()
+
+    void fetchData()
   }, [])
 
   async function toggleActive(venueId: string, isActive: boolean) {
-    await supabase.from('venues')
+    await supabase
+      .from('venues')
       .update({ is_active: !isActive, updated_at: new Date().toISOString() })
       .eq('id', venueId)
-    setVenues(prev => prev.map(v => v.id === venueId ? { ...v, is_active: !isActive } : v))
+    setVenues((prev) => prev.map((v) => (v.id === venueId ? { ...v, is_active: !isActive } : v)))
     toast.success(isActive ? 'Helyszín deaktiválva' : 'Helyszín aktiválva')
   }
 
-  const filtered = venues.filter(v =>
-    v.name?.toLowerCase().includes(search.toLowerCase()) ||
-    v.address?.toLowerCase().includes(search.toLowerCase()) ||
-    v.city?.toLowerCase().includes(search.toLowerCase())
+  const filtered = venues.filter(
+    (v) =>
+      v.name?.toLowerCase().includes(search.toLowerCase()) ||
+      v.address?.toLowerCase().includes(search.toLowerCase()) ||
+      v.city?.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -55,34 +60,31 @@ export default function VenuesPage() {
       <section className="admin-card p-5 sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <div className="section-kicker mb-3">
-              <Store className="h-4 w-4" />
-              siteadmin venue registry
-            </div>
-            <h2 className="text-3xl font-bold text-white lg:text-4xl">Teljes venue registry platformszinten</h2>
+            <div className="section-kicker mb-3">platform venue inventory</div>
+            <h2 className="text-3xl font-bold text-white lg:text-4xl">Site Admin - teljes venue registry</h2>
             <p className="mt-3 max-w-3xl text-sm text-white/60">
-              Ez a nézet a Common Admin külön Site Admin felületének része. A common_admin capability-k a Site Admin főoldalon érhetők el,
-              itt pedig a teljes venue állomány kezelése, státusza és üzemi áttekintése látható.
+              Ez a nézet a különálló Site Admin része. A Common Admin dashboard a /siteadmin főoldalon érhető el,
+              itt pedig az összes regisztrált venue platformszintű áttekintése és aktiválása történik.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Link href="/siteadmin" className="btn-kapakka justify-between px-5 py-4">
-              <span className="inline-flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /> Common Admin</span>
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-            <div className="mini-stat">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/35">Venue-k száma</p>
-              <p className="mt-2 text-2xl font-black text-white">{venues.length}</p>
-            </div>
-          </div>
+          <Link href="/siteadmin" className="btn-outline w-full justify-between px-5 py-4 xl:w-auto">
+            <span className="inline-flex items-center gap-2"><ArrowLeft className="h-4 w-4" /> Vissza a Common Adminra</span>
+          </Link>
         </div>
       </section>
 
-      <div className="relative">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Helyszínek</h1>
+          <p className="text-slate-400 text-sm mt-1">{venues.length} regisztrált helyszín</p>
+        </div>
+      </div>
+
+      <div className="relative mb-2">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
         <input
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Keresés névre, címre, városra..."
           className="w-full pl-10 pr-4 py-2.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
         />
@@ -97,19 +99,23 @@ export default function VenuesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map(venue => {
+          {filtered.map((venue) => {
             const stats = venueStats[venue.id] || { orders: 0, revenue: 0 }
             return (
-              <div key={venue.id}
+              <div
+                key={venue.id}
                 className={`bg-slate-800/30 border rounded-2xl overflow-hidden transition-all ${
                   venue.is_active ? 'border-slate-700/30' : 'border-red-500/20 opacity-60'
                 }`}
               >
-                <div className="h-2" style={{
-                  background: venue.is_active
-                    ? 'linear-gradient(90deg, #6366f1, #8b5cf6)'
-                    : 'linear-gradient(90deg, #ef4444, #dc2626)'
-                }} />
+                <div
+                  className="h-2"
+                  style={{
+                    background: venue.is_active
+                      ? 'linear-gradient(90deg, #6366f1, #8b5cf6)'
+                      : 'linear-gradient(90deg, #ef4444, #dc2626)',
+                  }}
+                />
 
                 <div className="p-5">
                   <div className="flex items-start justify-between mb-3">
@@ -125,10 +131,11 @@ export default function VenuesPage() {
                       className="flex-shrink-0 ml-2"
                       title={venue.is_active ? 'Deaktiválás' : 'Aktiválás'}
                     >
-                      {venue.is_active
-                        ? <ToggleRight className="w-7 h-7 text-green-400" />
-                        : <ToggleLeft className="w-7 h-7 text-slate-600" />
-                      }
+                      {venue.is_active ? (
+                        <ToggleRight className="w-7 h-7 text-green-400" />
+                      ) : (
+                        <ToggleLeft className="w-7 h-7 text-slate-600" />
+                      )}
                     </button>
                   </div>
 
@@ -145,7 +152,9 @@ export default function VenuesPage() {
                     </div>
                     <div className="bg-slate-900/50 rounded-lg p-2.5 text-center">
                       <p className="text-xs text-emerald-400 font-bold mb-0.5">HUF</p>
-                      <p className="text-white font-bold text-sm">{stats.revenue > 0 ? Math.round(stats.revenue / 1000) + 'k' : '0'}</p>
+                      <p className="text-white font-bold text-sm">
+                        {stats.revenue > 0 ? Math.round(stats.revenue / 1000) + 'k' : '0'}
+                      </p>
                       <p className="text-slate-500 text-xs">Bevétel</p>
                     </div>
                   </div>

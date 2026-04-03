@@ -68,6 +68,7 @@ Minden változtatás dátummal és leírással.
 - Valós idejű rendeléskezelés (Realtime)
 - PWA manifest
 
+
 ---
 
 ## [1.3.6] — 2026-03-31
@@ -152,6 +153,7 @@ Minden változtatás dátummal és leírással.
 - [x] A napi / folyamatos frissítéshez szükséges batch sync architektúra elkészült
 - [x] A szállítás csak a cserélendő fájlokat tartalmazza
 
+
 ---
 
 ## [1.4.2] — 2026-04-03
@@ -183,31 +185,30 @@ Minden változtatás dátummal és leírással.
 
 ---
 
-## [1.4.3] — 2026-04-03
+## [1.4.4] — 2026-04-03
 
-### 🛡️ Site Admin különválasztása a venue-admin felülettől
-- A **Site Admin** mostantól külön route-on és külön shellben fut: `/siteadmin`
-- A `CommonAdminPanel` többé nem a venue-admin konfigurátor részeként az elsődleges siteadmin entry point
-- A `/siteadmin` dashboard közvetlenül a platformszintű common_admin funkciókat jeleníti meg
-- A `/siteadmin/venues` route ugyanazon külön Site Admin layout alatt fut, így a teljes platform-admin felület konzisztensen elkülönül a vendéglátói admin oldaltól
+### 🛡️ Site Admin tényleges leválasztása a venue-adminról
+- A **Site Admin** többé nem jelenik meg a venue-admin (`/admin`) shell részeként.
+- A venue-admin oldalsávból kikerült a közvetlen **Site admin** menüpont.
+- A venue-admin **Konfigurátor** oldalon megszűnt a Common Admin tab; a Common Admin kizárólag a különálló **`/siteadmin`** felületen marad elérhető.
+- A külön platformszintű admin továbbra is a **`/siteadmin`** route-on érhető el, saját shell-lel és saját menüvel.
+- A `siteadmin/venues` nézet a külön Site Admin részeként kapott egyértelmű visszalépést a Common Admin dashboardra.
 
-### 🎯 Jogosultság és belépési pontok
-- A Site Admin felület **csak `superadmin` szerepkörrel** érhető el
-- A venue-admin oldalsávból a korábbi közvetlen Site Admin menüpont kikerült, hogy a két adminréteg ne keveredjen
-- Superadmin esetén a venue-admin shellben külön figyelmeztető/átvezető kártya jelenik meg a Site Admin megnyitásához
-- A superadmin felhasználó így továbbra is eléri a venue-admin felületet, de a platform-admin most már saját, külön kontextust kap
+### 🐛 Gyökérok
+- A main ágban a venue-admin layout még mindig tartalmazta a Site Admin linket, ezért a platformszintű admin a szolgáltatói shell részeként látszott.
+- A superadmin felhasználó a venue-adminba esett be, majd onnan tudott csak Site Adminra navigálni, ami sértette a kért szétválasztási modellt.
+- A venue-admin konfigurátorban bent maradt a Common Admin tab, ezért a common_admin képességek duplán, rossz helyen is megjelentek.
 
 ### 🔧 Technikai
-- Új fájl: `src/app/siteadmin/layout.tsx`
-- Új fájl: `src/app/siteadmin/page.tsx`
 - Módosult: `src/app/admin/layout.tsx`
-- A Common Admin képességek újrahasznosítva kerülnek be a külön siteadmin dashboardra
-- Új versioning dokumentumpár:
-  - `versioning/14040335_v1.4.3_business_request_summary.pdf`
-  - `versioning/14040335_v1.4.3_ai_dev_prompts.md`
+- Módosult: `src/app/admin/config/page.tsx`
+- Módosult: `src/app/siteadmin/venues/page.tsx`
+- Új versioning pár:
+  - `versioning/14040337_v1.4.4_business_request_summary.pdf`
+  - `versioning/14040337_v1.4.4_ai_dev_prompts.md`
 
 ### ✅ Végellenőrzési checklist
-- [x] A venue-admin és a site-admin vizuálisan és útvonal-szinten szétválasztva
-- [x] A common_admin funkciók külön siteadmin dashboardon elérhetők
-- [x] A venue-admin meglévő funkciói megmaradtak
-- [x] A changelog append-only módon bővült
+- [x] A Site Admin kikerült a venue-admin shellből
+- [x] A Common Admin kikerült a venue-admin konfigurátorból
+- [x] A külön `siteadmin` shell megmaradt
+- [x] A korábbi changelog history nem törlődött
