@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  ScrollText,
   Shield,
   Sparkles,
   Store,
@@ -19,6 +20,8 @@ import {
 const SITEADMIN_NAV = [
   { href: '/siteadmin', label: 'Common Admin', icon: LayoutDashboard },
   { href: '/siteadmin/venues', label: 'Venue registry', icon: Building2 },
+  { href: '/siteadmin/users', label: 'Felhasználók', icon: Users },
+  { href: '/siteadmin/logs', label: 'Aktivitás logok', icon: ScrollText },
 ]
 
 export default function SiteAdminLayout({ children }: { children: React.ReactNode }) {

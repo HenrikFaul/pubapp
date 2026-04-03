@@ -266,3 +266,16 @@
 - **Megelőzés**: Ha adminhatóköröket választunk szét, a régi shellből **MINDEN** korábbi entrypointot, tabot és menüpontot el kell távolítani. Nem elég csak az új route-ot létrehozni — az összes régi shellt, oldalsávot, config tabot és navigációs entrypointot is kötelező megvizsgálni.
 
 *Appendelve: 2026-04-03 — v1.4.5 governance integritás fix (átszámozva HIBA-036/037-ről, mivel azok már foglaltak voltak más tanulságokkal)*
+
+
+## ➕ APPEND — 2026-04-03 src patch nem kerül be a repóba ha PATCH_FILE_LIST hiányos
+
+### [HIBA-053] PATCH_FILE_LIST csak governance fájlokat tartalmazott — src változtatások nem kerültek be a repóba
+- **Dátum**: 2026-04-03 (v1.4.6)
+- **Fájl**: `PATCH_FILE_LIST.txt`, `src/app/siteadmin/*`, `src/components/admin/CommonAdminPanel.tsx`
+- **Hibaüzenet**: A siteadmin standalone felület nem jelent meg a live alkalmazásban, holott a changelog szerint már v1.4.3-tól megvalósítva volt.
+- **Gyökérok**: A delivery PATCH_FILE_LIST fájlja csak governance fájlokat (changelog, codingLessonsLearnt, versioning) sorolt fel. A fejlesztők ennek alapján csak azokat töltötték fel — az `src/` változtatások soha nem kerültek be a GitHub repóba, a Vercel deployment nem kapta meg a siteadmin shell és Common Admin src fájlokat.
+- **Javítás**: A teljes src patch (9 fájl) kiadva dedikált zipben, a PATCH_FILE_LIST explicitly tartalmazza az összes érintett src fájlt.
+- **Megelőzés**: **MINDEN** delivery PATCH_FILE_LIST-je tartalmazza az ÖSSZES módosított/létrehozott fájlt — beleértve a src fájlokat is. Ha új route/komponens/lib kerül be, az is kötelezően szerepel a listában. Governance-only delivery esetén ezt explicit fel kell tüntetni a listában.
+
+*Appendelve: 2026-04-03 — v1.4.6*

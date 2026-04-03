@@ -1,14 +1,21 @@
+# PUBAPP v1.4.6 — SiteAdmin src patch
+# Ezeket a fájlokat kell a GitHub repóba push-olni.
+
+# MÓDOSÍTOTT:
+src/app/admin/layout.tsx
+src/app/admin/config/page.tsx
+
+# ÚJ (standalone siteadmin shell + oldalak):
+src/app/siteadmin/layout.tsx
+src/app/siteadmin/page.tsx
+src/app/siteadmin/venues/page.tsx
+src/app/siteadmin/users/page.tsx
+src/app/siteadmin/logs/page.tsx
+
+# ÚJ (common admin komponens):
+src/components/admin/CommonAdminPanel.tsx
+src/lib/commonAdminMetadata.ts
+
+# GOVERNANCE (changelog + lessons frissítve):
 changelog.md
 codingLessonsLearnt.md
-.governance/codingLessonsLearnt.md
-PATCH_FILE_LIST.txt
-versioning/14040338_v1.4.5_ai_dev_prompts.md
-versioning/14040338_v1.4.5_business_request_summary.pdf
-
-DELETED (merged/obsolete):
-CHANGELOG_APPEND_v1.4.3.md
-CHANGELOG_APPEND_v1.4.4.md
-CODING_LESSONS_APPEND_v1.4.3.md
-CODING_LESSONS_APPEND_v1.4.4.md
-versioning/14040335_v1.4.3_ai_dev_prompts.md
-versioning/14040335_v1.4.3_business_request_summary.pdf

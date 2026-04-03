@@ -279,3 +279,46 @@ Minden változtatás dátummal és leírással. Append-only — korábbi bejegyz
 - [x] Hobbeast codingLessonsLearnt.local.md létrehozva
 - [x] Governance central tanulságok frissítve
 - [x] Minden korábbi history érintetlen
+
+---
+
+## [1.4.6] — 2026-04-03
+
+### 🛡️ SiteAdmin src patch — tényleges kódfeltöltés és nav kiegészítés
+
+#### Probléma gyökérok
+- A korábbi delivery (v1.4.3–v1.4.5) PATCH_FILE_LIST fájljai csak governance fájlokat tartalmaztak, ezért a fejlesztők nem töltötték fel a szükséges src fájlokat a repóba.
+- A Vercel deployment így továbbra is a régi kódot futtatta: a siteadmin standalone shell és a Common Admin komponens soha nem kerültek be a live GitHub ágba.
+- Az `src/app/siteadmin/` mappa (layout, page, venues, users, logs) hiányzott a repóból.
+- A siteadmin layout nav hiányos volt: a Users és Logs oldalak léteztek, de nem jelentek meg a navigációban.
+
+#### Elvégzett src változtatások
+- **`src/app/admin/layout.tsx`**: superadmin redirect `/siteadmin`-re; a venue-admin NAV-ban nincs siteadmin link.
+- **`src/app/admin/config/page.tsx`**: Common Admin tab eltávolítva a venue-admin konfigurátorból.
+- **`src/app/siteadmin/layout.tsx`** *(új)*: standalone Site Admin shell, saját auth checkkel (csak superadmin); nav: Common Admin, Venue registry, Felhasználók, Aktivitás logok.
+- **`src/app/siteadmin/page.tsx`** *(új)*: Site Admin főoldal, `<CommonAdminPanel />` beágyazva.
+- **`src/app/siteadmin/venues/page.tsx`** *(új)*: Venue registry, visszanavigál `/siteadmin`-re.
+- **`src/app/siteadmin/users/page.tsx`** *(új)*: Felhasználókezelés, szerepkör-módosítás.
+- **`src/app/siteadmin/logs/page.tsx`** *(új)*: Aktivitás logok.
+- **`src/components/admin/CommonAdminPanel.tsx`** *(új)*: integrációk, hosting, release snapshot, place-sync.
+- **`src/lib/commonAdminMetadata.ts`** *(új)*: metaadat helper.
+
+#### Végeredmény architektúra
+```
+/customer  → Felhasználói felület (standalone)
+/admin     → Szolgáltatói felület (standalone, venue admin + staff)
+/siteadmin → Site Admin felület (standalone, csak superadmin)
+              ├── Common Admin (integrációk, hosting, release, place-sync)
+              ├── Venue registry
+              ├── Felhasználók
+              └── Aktivitás logok
+```
+
+### ✅ Végellenőrzési checklist
+- [x] `/admin` NAV-ban nincs siteadmin link
+- [x] superadmin `/admin`-ra lépve automatikusan `/siteadmin`-re kerül
+- [x] `/siteadmin` önálló shellel rendelkezik (nem a venue-admin shell child-ja)
+- [x] Common Admin kizárólag a `/siteadmin` főoldalon jelenik meg
+- [x] venue-admin konfigurátorból (config/page.tsx) kikerült a Common Admin tab
+- [x] siteadmin nav teljes: Common Admin, Venue registry, Felhasználók, Aktivitás logok
+- [x] Korábbi history érintetlen
