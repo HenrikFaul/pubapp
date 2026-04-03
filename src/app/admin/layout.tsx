@@ -24,16 +24,16 @@ import {
 } from 'lucide-react'
 
 const NAV = [
-  { href: '/admin', label: 'Élő kiszolgálás', icon: Zap },
-  { href: '/admin/kds', label: 'Konyha monitor', icon: Monitor },
-  { href: '/admin/orders', label: 'Rendelések', icon: ClipboardList },
-  { href: '/admin/menu', label: 'Étlap', icon: UtensilsCrossed },
-  { href: '/admin/reservations', label: 'Foglalások', icon: CalendarClock },
-  { href: '/admin/inventory', label: 'Készlet', icon: Package },
-  { href: '/admin/stats', label: 'Statisztikák', icon: BarChart3 },
-  { href: '/admin/reports', label: 'Riportok', icon: FileDown },
-  { href: '/admin/config', label: 'Konfigurátor', icon: Settings },
-  { href: '/admin/help', label: 'Segítség', icon: HelpCircle },
+  { href: '/admin',              label: 'Élő kiszolgálás', icon: Zap },
+  { href: '/admin/kds',          label: 'Konyha monitor',  icon: Monitor },
+  { href: '/admin/orders',       label: 'Rendelések',      icon: ClipboardList },
+  { href: '/admin/menu',         label: 'Étlap',           icon: UtensilsCrossed },
+  { href: '/admin/reservations', label: 'Foglalások',      icon: CalendarClock },
+  { href: '/admin/inventory',    label: 'Készlet',         icon: Package },
+  { href: '/admin/stats',        label: 'Statisztikák',    icon: BarChart3 },
+  { href: '/admin/reports',      label: 'Riportok',        icon: FileDown },
+  { href: '/admin/config',       label: 'Konfigurátor',    icon: Settings },
+  { href: '/admin/help',         label: 'Segítség',        icon: HelpCircle },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -59,7 +59,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return
       }
 
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single()
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single()
+
       const userRole = profile?.role || authUser.user_metadata?.role
 
       if (!userRole || !['admin', 'staff', 'superadmin'].includes(userRole)) {
@@ -76,7 +81,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       setAuthState('ok')
 
       if (profile?.venue_id) {
-        const { data: venueRow } = await supabase.from('venues').select('*').eq('id', profile.venue_id).single()
+        const { data: venueRow } = await supabase
+          .from('venues')
+          .select('*')
+          .eq('id', profile.venue_id)
+          .single()
         setVenue(venueRow || null)
 
         const fetchPending = async () => {
@@ -128,7 +137,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="hero-card w-full max-w-xl p-8 text-center">
           <h1 className="section-title">Bejelentkezés szükséges</h1>
           <p className="section-subtitle mt-3">Az admin panel használatához be kell jelentkezned.</p>
-          <button onClick={() => router.push('/')} className="btn-kapakka mx-auto mt-6 max-w-xs">Vissza a belépéshez</button>
+          <button onClick={() => router.push('/')} className="btn-kapakka mx-auto mt-6 max-w-xs">
+            Vissza a belépéshez
+          </button>
         </div>
       </div>
     )
@@ -138,12 +149,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
       <div className="app-shell flex min-h-screen items-center justify-center px-4">
         <div className="hero-card w-full max-w-xl p-8 text-center">
-          <div className="section-kicker mx-auto mb-4 w-fit"><Shield className="h-4 w-4" /> Nincs admin hozzáférés</div>
+          <div className="section-kicker mx-auto mb-4 w-fit">
+            <Shield className="h-4 w-4" /> Nincs admin hozzáférés
+          </div>
           <h1 className="section-title">Ez a fiók csak vendég oldalra jogosult.</h1>
-          <p className="section-subtitle mt-3">Ha venue kezelő vagy, a szerepkört a site adminnak kell hozzárendelnie.</p>
+          <p className="section-subtitle mt-3">
+            Ha venue kezelő vagy, a szerepkört a site adminnak kell hozzárendelnie.
+          </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <button onClick={() => router.push('/customer')} className="btn-kapakka sm:w-auto sm:px-6">Vendég felület</button>
-            <button onClick={logout} className="btn-outline sm:w-auto sm:px-6">Kijelentkezés</button>
+            <button onClick={() => router.push('/customer')} className="btn-kapakka sm:w-auto sm:px-6">
+              Vendég felület
+            </button>
+            <button onClick={logout} className="btn-outline sm:w-auto sm:px-6">
+              Kijelentkezés
+            </button>
           </div>
         </div>
       </div>
@@ -164,7 +183,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <p className="text-xs text-white/55">{venue?.name || 'Venue control'}</p>
               </div>
             </div>
-            <button onClick={() => setSideOpen(false)} className="rounded-full border border-white/10 bg-white/5 p-2 text-white/50 lg:hidden">
+            <button
+              onClick={() => setSideOpen(false)}
+              className="rounded-full border border-white/10 bg-white/5 p-2 text-white/50 lg:hidden"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -178,13 +200,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <nav className="flex-1 space-y-2 overflow-y-auto pr-1">
           {NAV.map((item) => {
             const Icon = item.icon
-            const active = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href))
+            const active =
+              pathname === item.href ||
+              (item.href !== '/admin' && pathname?.startsWith(item.href))
             return (
-              <Link key={item.href} href={item.href} onClick={() => setSideOpen(false)} className={`admin-nav-link ${active ? 'active' : ''}`}>
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setSideOpen(false)}
+                className={`admin-nav-link ${active ? 'active' : ''}`}
+              >
                 <Icon className="h-4 w-4" />
                 <span>{item.label}</span>
                 {item.href === '/admin' && pending > 0 && (
-                  <span className="ml-auto inline-flex min-w-[22px] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[11px] font-black text-white">{pending}</span>
+                  <span className="ml-auto inline-flex min-w-[22px] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[11px] font-black text-white">
+                    {pending}
+                  </span>
                 )}
               </Link>
             )
@@ -204,7 +235,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <header className="admin-topbar">
           <div className="admin-page flex items-center justify-between gap-4 py-4">
             <div className="flex items-center gap-3">
-              <button onClick={() => setSideOpen(true)} className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/5 text-white lg:hidden">
+              <button
+                onClick={() => setSideOpen(true)}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/5 text-white lg:hidden"
+              >
                 <Menu className="h-5 w-5" />
               </button>
               <div>
@@ -212,7 +246,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <Sparkles className="h-4 w-4" />
                   venue control center
                 </div>
-                <h1 className="text-2xl font-bold text-white lg:text-3xl">{venue?.name || 'Kapakka Admin'}</h1>
+                <h1 className="text-2xl font-bold text-white lg:text-3xl">
+                  {venue?.name || 'Kapakka Admin'}
+                </h1>
               </div>
             </div>
             <div className="hidden rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-right text-white/70 xl:block">
