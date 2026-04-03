@@ -152,3 +152,33 @@ Minden változtatás dátummal és leírással.
 - [x] A provider-only keresés helyett local-first megoldás került be
 - [x] A napi / folyamatos frissítéshez szükséges batch sync architektúra elkészült
 - [x] A szállítás csak a cserélendő fájlokat tartalmazza
+
+
+---
+
+## [1.4.2] — 2026-04-03
+
+### 🧩 Common Admin baseline rollout — append-only javítás
+- A közös adminmodell Pubapp oldali baseline rolloutja **append-only changelog** elv szerint került korrigálásra.
+- A korábbi release history teljes egészében megőrzésre került, az új adminbővítés új történeti szekcióként került hozzáadva.
+- Az admin konfigurátor új **Common Admin** capability blokkot kapott.
+- Az új common_admin baseline capability-k:
+  - **Integrációk és hosting inventory**
+  - **Alkalmazásverzió és deployment metaadatok**
+  - **Changelog-alapú leszállított funkciólista**
+  - **Lokális katalógus állapot és újraszinkron trigger**
+- A már meglévő venue/config/design adminfunkciók változatlanul megmaradnak.
+
+### 🔧 Technikai
+- Új közös admin komponens: `src/components/admin/CommonAdminPanel.tsx`
+- Új metaadat helper: `src/lib/commonAdminMetadata.ts`
+- Az admin konfigurátor oldala új Common Admin nézettel bővült.
+- Új versioning dokumentumpár:
+  - `versioning/14040332_v1.4.2_business_request_summary.pdf`
+  - `versioning/14040332_v1.4.2_ai_dev_prompts.md`
+
+### ✅ Végellenőrzési checklist
+- [x] A changelog korábbi tartalma megőrizve
+- [x] Az új common_admin baseline hozzáappendelve
+- [x] A meglévő admin konfigurációs funkciók megőrizve
+- [x] A szállítás csak a cserélendő fájlokat tartalmazza

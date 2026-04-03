@@ -7,6 +7,7 @@ import PlaceAutocomplete from '@/components/PlaceAutocomplete'
 import { broadcastThemeChange } from '@/components/AppShellProviders'
 import { supabase } from '@/lib/supabase'
 import { DAY_NAMES } from '@/lib/utils'
+import CommonAdminPanel from '@/components/admin/CommonAdminPanel'
 import { DEFAULT_THEME_KEY, KAPAKKA_THEMES, type KapakkaThemeKey } from '@/lib/themes'
 import { type Venue } from '@/types'
 import {
@@ -22,7 +23,7 @@ import {
   Users,
 } from 'lucide-react'
 
-type Tab = 'overview' | 'venue' | 'hours' | 'service' | 'tables' | 'staff' | 'appearance'
+type Tab = 'overview' | 'venue' | 'hours' | 'service' | 'tables' | 'staff' | 'appearance' | 'common_admin'
 
 interface ConfigTab {
   id: Tab
@@ -156,6 +157,7 @@ export default function ConfigPage() {
       { id: 'tables', label: 'Asztalok', icon: <Download className="h-4 w-4" /> },
       { id: 'staff', label: 'Csapat', icon: <Users className="h-4 w-4" /> },
       { id: 'appearance', label: 'Design', icon: <Sparkles className="h-4 w-4" /> },
+      { id: 'common_admin', label: 'Common Admin', icon: <Settings className="h-4 w-4" /> },
     ],
     []
   )
@@ -466,6 +468,8 @@ export default function ConfigPage() {
           </div>
         </section>
       )}
+
+      {tab === 'common_admin' && <CommonAdminPanel />}
 
       {tab === 'appearance' && (
         <section className="admin-card p-5 sm:p-6">

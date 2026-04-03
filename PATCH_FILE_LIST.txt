@@ -1,6 +1,6 @@
-src/lib/place-search.ts
-supabase/functions/place-search/index.ts
-codingLessonsLearnt.md
 changelog.md
-versioning/13903921_v1.3.9_business_request_summary.pdf
-versioning/13903921_v1.3.9_ai_dev_prompts.md
+src/app/admin/config/page.tsx
+src/components/admin/CommonAdminPanel.tsx
+src/lib/commonAdminMetadata.ts
+versioning/14040332_v1.4.2_ai_dev_prompts.md
+versioning/14040332_v1.4.2_business_request_summary.pdf
