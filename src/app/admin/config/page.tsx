@@ -7,7 +7,6 @@ import PlaceAutocomplete from '@/components/PlaceAutocomplete'
 import { broadcastThemeChange } from '@/components/AppShellProviders'
 import { supabase } from '@/lib/supabase'
 import { DAY_NAMES } from '@/lib/utils'
-import CommonAdminPanel from '@/components/admin/CommonAdminPanel'
 import { DEFAULT_THEME_KEY, KAPAKKA_THEMES, type KapakkaThemeKey } from '@/lib/themes'
 import { type Venue } from '@/types'
 import {
@@ -23,7 +22,7 @@ import {
   Users,
 } from 'lucide-react'
 
-type Tab = 'overview' | 'venue' | 'hours' | 'service' | 'tables' | 'staff' | 'appearance' | 'common_admin'
+type Tab = 'overview' | 'venue' | 'hours' | 'service' | 'tables' | 'staff' | 'appearance'
 
 interface ConfigTab {
   id: Tab
@@ -81,7 +80,7 @@ export default function ConfigPage() {
       }))
     }
 
-    init()
+    void init()
   }, [])
 
   async function saveVenue() {
@@ -157,7 +156,6 @@ export default function ConfigPage() {
       { id: 'tables', label: 'Asztalok', icon: <Download className="h-4 w-4" /> },
       { id: 'staff', label: 'Csapat', icon: <Users className="h-4 w-4" /> },
       { id: 'appearance', label: 'Design', icon: <Sparkles className="h-4 w-4" /> },
-      { id: 'common_admin', label: 'Common Admin', icon: <Settings className="h-4 w-4" /> },
     ],
     []
   )
@@ -171,8 +169,8 @@ export default function ConfigPage() {
               <Sparkles className="h-4 w-4" />
               responsive venue configuration
             </div>
-            <h2 className="text-3xl font-bold text-white lg:text-4xl">Teljes Kapakka élményvezérlés egy helyen.</h2>
-            <p className="mt-3 max-w-3xl text-sm text-white/60">Design, foglalás, automatikus rendelésértesítés, külső place-discovery és csapatbeállítások redeploy nélkül.</p>
+            <h2 className="text-3xl font-bold text-white lg:text-4xl">Teljes venue-üzemeltetés egy helyen.</h2>
+            <p className="mt-3 max-w-3xl text-sm text-white/60">Design, foglalás, automatikus rendelésértesítés, csapatkezelés és QR asztalok. A platformszintű Common Admin innentől külön a Site Admin felületen érhető el.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="mini-stat">
@@ -209,7 +207,7 @@ export default function ConfigPage() {
                 {[
                   'Asztalfoglalás engedélyezése és limitjei',
                   'Order update automatikus értesítések',
-                  'TomTom / Geoapify venue discovery felkészítés',
+                  'Venue profil és elérhetőségek',
                   'Design váltás live üzemi módban',
                 ].map((item) => (
                   <div key={item} className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/65">{item}</div>
@@ -217,10 +215,10 @@ export default function ConfigPage() {
               </div>
             </div>
             <div className="admin-card-soft p-5">
-              <div className="flex items-center gap-2 text-white/70"><Info className="h-4 w-4" /> <span className="text-sm font-semibold">Venue discovery integráció</span></div>
-              <p className="mt-3 text-sm text-white/60">Az ügyféloldali venue explorer a Supabase edge functiont hívja, ahol Geoapify az elsődleges kereső és TomTom a fallback / enrichment réteg.</p>
+              <div className="flex items-center gap-2 text-white/70"><Info className="h-4 w-4" /> <span className="text-sm font-semibold">Platform admin különválasztva</span></div>
+              <p className="mt-3 text-sm text-white/60">A Common Admin, integrációk, hosting, release snapshot és lokális katalógus operáció innentől a külön Site Admin felületen érhető el.</p>
               <div className="mt-4 rounded-[22px] border border-white/10 bg-white/5 p-4 text-sm text-white/55">
-                A place-cache, a kedvencek, a közös listák és a rendelésjelző trigger külön migrációban vannak csomagolva, hogy a rollout fokozatosan is végezhető legyen.
+                A venue-admin kizárólag az adott vendéglátóhely működtetésére fókuszál: étlap, készlet, rendelések, foglalás, csapat és design.
               </div>
             </div>
           </div>
@@ -468,8 +466,6 @@ export default function ConfigPage() {
           </div>
         </section>
       )}
-
-      {tab === 'common_admin' && <CommonAdminPanel />}
 
       {tab === 'appearance' && (
         <section className="admin-card p-5 sm:p-6">

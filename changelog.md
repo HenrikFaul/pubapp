@@ -68,7 +68,6 @@ Minden változtatás dátummal és leírással.
 - Valós idejű rendeléskezelés (Realtime)
 - PWA manifest
 
-
 ---
 
 ## [1.3.6] — 2026-03-31
@@ -153,7 +152,6 @@ Minden változtatás dátummal és leírással.
 - [x] A napi / folyamatos frissítéshez szükséges batch sync architektúra elkészült
 - [x] A szállítás csak a cserélendő fájlokat tartalmazza
 
-
 ---
 
 ## [1.4.2] — 2026-04-03
@@ -182,3 +180,34 @@ Minden változtatás dátummal és leírással.
 - [x] Az új common_admin baseline hozzáappendelve
 - [x] A meglévő admin konfigurációs funkciók megőrizve
 - [x] A szállítás csak a cserélendő fájlokat tartalmazza
+
+---
+
+## [1.4.3] — 2026-04-03
+
+### 🛡️ Site Admin különválasztása a venue-admin felülettől
+- A **Site Admin** mostantól külön route-on és külön shellben fut: `/siteadmin`
+- A `CommonAdminPanel` többé nem a venue-admin konfigurátor részeként az elsődleges siteadmin entry point
+- A `/siteadmin` dashboard közvetlenül a platformszintű common_admin funkciókat jeleníti meg
+- A `/siteadmin/venues` route ugyanazon külön Site Admin layout alatt fut, így a teljes platform-admin felület konzisztensen elkülönül a vendéglátói admin oldaltól
+
+### 🎯 Jogosultság és belépési pontok
+- A Site Admin felület **csak `superadmin` szerepkörrel** érhető el
+- A venue-admin oldalsávból a korábbi közvetlen Site Admin menüpont kikerült, hogy a két adminréteg ne keveredjen
+- Superadmin esetén a venue-admin shellben külön figyelmeztető/átvezető kártya jelenik meg a Site Admin megnyitásához
+- A superadmin felhasználó így továbbra is eléri a venue-admin felületet, de a platform-admin most már saját, külön kontextust kap
+
+### 🔧 Technikai
+- Új fájl: `src/app/siteadmin/layout.tsx`
+- Új fájl: `src/app/siteadmin/page.tsx`
+- Módosult: `src/app/admin/layout.tsx`
+- A Common Admin képességek újrahasznosítva kerülnek be a külön siteadmin dashboardra
+- Új versioning dokumentumpár:
+  - `versioning/14040335_v1.4.3_business_request_summary.pdf`
+  - `versioning/14040335_v1.4.3_ai_dev_prompts.md`
+
+### ✅ Végellenőrzési checklist
+- [x] A venue-admin és a site-admin vizuálisan és útvonal-szinten szétválasztva
+- [x] A common_admin funkciók külön siteadmin dashboardon elérhetők
+- [x] A venue-admin meglévő funkciói megmaradtak
+- [x] A changelog append-only módon bővült
