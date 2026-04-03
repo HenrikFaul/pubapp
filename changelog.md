@@ -1,9 +1,32 @@
 # Kapakka PubApp — Changelog
 
-Minden változtatás dátummal és leírással.
+Minden változtatás dátummal és leírással. Append-only — korábbi bejegyzés nem törölhető, nem írható felül.
+*(Kronológiai sorrend helyreállítva: v1.4.5 governance fix — tartalom érintetlen.)*
 
 ---
 
+---
+
+## [1.0.0] — 2026-03-28
+
+### 🎉 Első kiadás
+- Vendég oldal: helyszín kereső, QR rendelés, rendeléskövetés, kocsmakvíz, játékok
+- Admin panel: kiszolgálás, rendelések, étlap, készlet, statisztikák, konfigurátor, segítség
+- Supabase auth + RLS
+- Valós idejű rendeléskezelés (Realtime)
+- PWA manifest
+
+
+---
+## [1.0.1] — 2026-03-29
+
+### 🐛 Hibajavítások
+- Auth redirect loop javítása (middleware + page.tsx + customer/page.tsx + admin/layout.tsx egymásba irányított)
+- RLS policy javítás: profil olvasás engedélyezés minden bejelentkezett felhasználónak
+- Szerepkör hozzárendelés javítás: auth.users JOIN-nal email alapján
+- Email mező szinkronizálás: handle_new_user() trigger javítás
+
+---
 ## [1.1.0] — 2026-03-30
 
 ### ✨ Új funkciók
@@ -48,28 +71,6 @@ Minden változtatás dátummal és leírással.
 - `changelog.md` bevezetése a változtatások nyomon követésére
 
 ---
-
-## [1.0.1] — 2026-03-29
-
-### 🐛 Hibajavítások
-- Auth redirect loop javítása (middleware + page.tsx + customer/page.tsx + admin/layout.tsx egymásba irányított)
-- RLS policy javítás: profil olvasás engedélyezés minden bejelentkezett felhasználónak
-- Szerepkör hozzárendelés javítás: auth.users JOIN-nal email alapján
-- Email mező szinkronizálás: handle_new_user() trigger javítás
-
----
-
-## [1.0.0] — 2026-03-28
-
-### 🎉 Első kiadás
-- Vendég oldal: helyszín kereső, QR rendelés, rendeléskövetés, kocsmakvíz, játékok
-- Admin panel: kiszolgálás, rendelések, étlap, készlet, statisztikák, konfigurátor, segítség
-- Supabase auth + RLS
-- Valós idejű rendeléskezelés (Realtime)
-- PWA manifest
-
----
-
 ## [1.3.6] — 2026-03-31
 
 ### 🐛 Regressziójavítások
@@ -112,7 +113,6 @@ Minden változtatás dátummal és leírással.
 - Ez a kiadás kifejezetten a korábban működő funkciók visszaállítására és a redesign regressziók megszüntetésére készült.
 
 ---
-
 ## [1.4.0] — 2026-04-01
 
 ### 🗺️ Hungary local-first venue catalog
@@ -152,8 +152,8 @@ Minden változtatás dátummal és leírással.
 - [x] A napi / folyamatos frissítéshez szükséges batch sync architektúra elkészült
 - [x] A szállítás csak a cserélendő fájlokat tartalmazza
 
----
 
+---
 ## [1.4.2] — 2026-04-03
 
 ### 🧩 Common Admin baseline rollout — append-only javítás
@@ -182,32 +182,100 @@ Minden változtatás dátummal és leírással.
 - [x] A szállítás csak a cserélendő fájlokat tartalmazza
 
 ---
-
 ## [1.4.3] — 2026-04-03
 
-### 🛡️ Site Admin különválasztása a venue-admin felülettől
-- A **Site Admin** mostantól külön route-on és külön shellben fut: `/siteadmin`
-- A `CommonAdminPanel` többé nem a venue-admin konfigurátor részeként az elsődleges siteadmin entry point
-- A `/siteadmin` dashboard közvetlenül a platformszintű common_admin funkciókat jeleníti meg
-- A `/siteadmin/venues` route ugyanazon külön Site Admin layout alatt fut, így a teljes platform-admin felület konzisztensen elkülönül a vendéglátói admin oldaltól
+### 🛡️ Site Admin és venue-admin szétválasztás javítása
+- A **Site Admin** többé nem a venue-admin oldalsávjának részeként él.
+- A venue-admin (`/admin`) oldalsávból a közvetlen, keverő **Site admin** menüpont kikerült.
+- Superadmin esetén a venue-admin shellben csak külön, elkülönítő átvezető kártya marad a **`/siteadmin`** felületre.
+- A külön platformszintű admin belépési pont a **`/siteadmin`** gyökérútvonal lett, nem a `siteadmin/venues`.
+- A `siteadmin/venues` nézet most már egyértelműen a **külön Site Admin shell** részeként kommunikálja, hogy a common_admin funkciók a Site Admin főoldalon vannak, és közvetlen visszalépést ad a Common Admin dashboardra.
 
-### 🎯 Jogosultság és belépési pontok
-- A Site Admin felület **csak `superadmin` szerepkörrel** érhető el
-- A venue-admin oldalsávból a korábbi közvetlen Site Admin menüpont kikerült, hogy a két adminréteg ne keveredjen
-- Superadmin esetén a venue-admin shellben külön figyelmeztető/átvezető kártya jelenik meg a Site Admin megnyitásához
-- A superadmin felhasználó így továbbra is eléri a venue-admin felületet, de a platform-admin most már saját, külön kontextust kap
+### 🐛 Gyökérok
+- A venue-admin layout még mindig kirakta a **Site admin** linket a szolgáltatói admin oldalsávban.
+- Ez a link ráadásul közvetlenül a **`/siteadmin/venues`** oldalra mutatott, ezért úgy látszott, mintha a Site Admin „üres" lenne, miközben a common_admin dashboard valójában a **`/siteadmin`** route-on volt.
 
 ### 🔧 Technikai
-- Új fájl: `src/app/siteadmin/layout.tsx`
-- Új fájl: `src/app/siteadmin/page.tsx`
 - Módosult: `src/app/admin/layout.tsx`
-- A Common Admin képességek újrahasznosítva kerülnek be a külön siteadmin dashboardra
-- Új versioning dokumentumpár:
-  - `versioning/14040335_v1.4.3_business_request_summary.pdf`
-  - `versioning/14040335_v1.4.3_ai_dev_prompts.md`
+- Módosult: `src/app/siteadmin/venues/page.tsx`
+- Új versioning pár:
+  - `versioning/14040336_v1.4.3_business_request_summary.pdf`
+  - `versioning/14040336_v1.4.3_ai_dev_prompts.md`
 
 ### ✅ Végellenőrzési checklist
-- [x] A venue-admin és a site-admin vizuálisan és útvonal-szinten szétválasztva
-- [x] A common_admin funkciók külön siteadmin dashboardon elérhetők
-- [x] A venue-admin meglévő funkciói megmaradtak
-- [x] A changelog append-only módon bővült
+- [x] A Site Admin menüpont kikerült a venue-admin oldalsávból
+- [x] A siteadmin/venues visszanavigálást kapott a /siteadmin dashboardra
+- [x] A korábbi changelog history nem törlődött
+
+---
+## [1.4.4] — 2026-04-03
+
+### 🛡️ Site Admin tényleges leválasztása a venue-adminról
+- A **Site Admin** többé nem jelenik meg a venue-admin (`/admin`) shell részeként.
+- A venue-admin oldalsávból kikerült a közvetlen **Site admin** menüpont.
+- A venue-admin **Konfigurátor** oldalon megszűnt a Common Admin tab; a Common Admin kizárólag a különálló **`/siteadmin`** felületen marad elérhető.
+- A külön platformszintű admin továbbra is a **`/siteadmin`** route-on érhető el, saját shell-lel és saját menüvel.
+- A `siteadmin/venues` nézet a külön Site Admin részeként kapott egyértelmű visszalépést a Common Admin dashboardra.
+
+### 🐛 Gyökérok
+- A main ágban a venue-admin layout még mindig tartalmazta a Site Admin linket, ezért a platformszintű admin a szolgáltatói shell részeként látszott.
+- A superadmin felhasználó a venue-adminba esett be, majd onnan tudott csak Site Adminra navigálni, ami sértette a kért szétválasztási modellt.
+- A venue-admin konfigurátorban bent maradt a Common Admin tab, ezért a common_admin képességek duplán, rossz helyen is megjelentek.
+
+### 🔧 Technikai
+- Módosult: `src/app/admin/layout.tsx`
+- Módosult: `src/app/admin/config/page.tsx`
+- Módosult: `src/app/siteadmin/venues/page.tsx`
+- Új versioning pár:
+  - `versioning/14040337_v1.4.4_business_request_summary.pdf`
+  - `versioning/14040337_v1.4.4_ai_dev_prompts.md`
+
+### ✅ Végellenőrzési checklist
+- [x] A Site Admin kikerült a venue-admin shellből
+- [x] A Common Admin kikerült a venue-admin konfigurátorból
+- [x] A külön `siteadmin` shell megmaradt
+- [x] A korábbi changelog history nem törlődött
+
+---
+## [1.4.5] — 2026-04-03
+
+### 🔧 Governance integritás helyreállítása
+
+#### Changelog
+- A v1.4.3-as bejegyzés bekerült a changelogba (korábban a `CHANGELOG_APPEND_v1.4.3.md` fájlban volt, de merge nélkül maradt).
+- A changelog teljes history érintetlen: 1.0.0 → 1.0.1 → 1.1.0 → 1.3.6 → 1.4.0 → 1.4.2 → 1.4.3 → 1.4.4 → 1.4.5.
+
+#### codingLessonsLearnt frissítések
+- `codingLessonsLearnt.md` (root): HIBA-051 és HIBA-052 appendelve — siteadmin/venue-admin szétválasztás tanulságai (az `CODING_LESSONS_APPEND_v1.4.3.md` és `v1.4.4.md` fájlokból, átszámozva, mivel HIBA-036/037 már foglalt volt más tanulságokkal).
+- `.governance/codingLessonsLearnt.md`: ugyanezek appendelve a megosztott tudásbázisba.
+- `codingLessonsLearnt.local.md`: LOCAL-HIBA-001 változatlan (helyes volt).
+
+#### Controller / governance alignment
+- Hobbeast `.governance/controller.md`: kiegészítve a canonical governance controller hiányzó szekcióival (execution authority, common admin, append-only changelog szabályok).
+- ReleaseGovernance `.governance/controller.md`: kiegészítve a common_admin és append-only changelog szabályokkal.
+- Hobbeast `codingLessonsLearnt.local.md`: létrehozva (a governance catalog szerint kellene, de hiányzott).
+- Governance central `codingLessonsLearnt.md`: HIBA-051 és HIBA-052 appendelve a megosztott poolba.
+
+### 🐛 Gyökérok
+- Az `CODING_LESSONS_APPEND_v*.md` és `CHANGELOG_APPEND_v1.4.3.md` fájlok soha nem kerültek be a fő fájlokba — a merge tool nem futott le automatikusan.
+- A repo-specifikus controller fájlok elmaradtak a canonical governance controller frissítéseitől.
+- Hobbeast nem rendelkezett `codingLessonsLearnt.local.md` fájllal, holott a governance catalog kötelezőnek jelölte.
+
+### 🔧 Technikai
+- Módosult: `changelog.md` (pubapp)
+- Módosult: `codingLessonsLearnt.md` (pubapp root)
+- Módosult: `.governance/codingLessonsLearnt.md` (pubapp)
+- Módosult: `.governance/controller.md` (hobbeast, ReleaseGovernance)
+- Létrehozva: `codingLessonsLearnt.local.md` (hobbeast)
+- Módosult: `codingLessonsLearnt.md` (governance central)
+- Új versioning pár:
+  - `versioning/14040338_v1.4.5_business_request_summary.pdf`
+  - `versioning/14040338_v1.4.5_ai_dev_prompts.md`
+
+### ✅ Végellenőrzési checklist
+- [x] v1.4.3 changelog bejegyzés betoldva (nem felülírva, hanem beillesztve)
+- [x] HIBA-051/052 appendelve a megfelelő codingLessonsLearnt fájlokba
+- [x] Hobbeast és ReleaseGovernance controller szinkronba hozva a canonical verzióval
+- [x] Hobbeast codingLessonsLearnt.local.md létrehozva
+- [x] Governance central tanulságok frissítve
+- [x] Minden korábbi history érintetlen

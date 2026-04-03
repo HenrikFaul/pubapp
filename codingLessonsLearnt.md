@@ -245,3 +245,24 @@
 - **Gyökérok**: A provider API-k oldalanként limitáltak és földrajzi keresési paraméterekkel dolgoznak. Teljes országos lefedettséghez csempézett (tile-olt), offsetes batch szinkron kell.
 - **Javítás**: Magyarország bounding box csempézésre került, és a szinkron edge function előre generált feladatlistából dolgozik batch-ekben. A napi frissítéshez SQL ütemező helper is készült.
 - **Megelőzés**: Nagy földrajzi datasetnél **MINDIG** tervezz tile + pagination + cursor/state alapú batch szinkront. Ne bízz egyetlen queryben vagy egyetlen provider oldali result page-ben.
+
+
+## ➕ APPEND — 2026-04-03 siteadmin / venue-admin szétválasztás
+
+### [HIBA-051] Site Admin rossz entrypointra mutatott a venue-admin shellből
+- **Dátum**: 2026-04-03 (v1.4.3)
+- **Fájl**: `src/app/admin/layout.tsx`
+- **Hibaüzenet**: A venue-admin oldalsávban továbbra is megjelent a Site Admin link, ami ráadásul nem a Site Admin főoldalra, hanem a `siteadmin/venues` nézetre vitt.
+- **Gyökérok**: A siteadmin külön route már létrejött, de a régi `/admin` shellben bent maradt a keverő menüpont, és az rossz célútvonalra (`/siteadmin/venues`) mutatott. Így úgy tűnt, mintha a Site Admin „üres" lenne, holott a Common Admin dashboard valójában a `/siteadmin` route-on volt.
+- **Javítás**: A közvetlen sidebar menüpont kikerült a venue-admin navigációból; helyette superadmin esetén csak elkülönítő átvezető CTA marad a külön `/siteadmin` felületre.
+- **Megelőzés**: Ha két adminhatókör szétválik (venue-admin vs site-admin), **SOHA** ne maradjon az egyik shell főnavigációjában a másik teljes felülete ugyanazon prioritású menüpontként. Az entrypointnak a megfelelő gyökér route-ra kell mutatnia — nem egy belső aloldalra.
+
+### [HIBA-052] A külön siteadmin route létrehozása önmagában nem szünteti meg a funkcionális keveredést
+- **Dátum**: 2026-04-03 (v1.4.4)
+- **Fájl**: `src/app/admin/layout.tsx`, `src/app/admin/config/page.tsx`
+- **Hibaüzenet**: A siteadmin továbbra is a szolgáltatói admin felület részeként látszott, és a Common Admin is bent maradt a venue-admin konfigurátorban.
+- **Gyökérok**: A siteadmin saját route és layout már megvolt, de a régi entrypointok és tabok bent maradtak a venue-admin shellben. A venue-admin konfigurátor Common Admin tabja duplán, rossz helyen is megjelentette a platformszintű admin funkciókat.
+- **Javítás**: A venue-adminból kikerült a Site Admin navigációs pont és a Common Admin tab; a `siteadmin/venues` visszalépést kapott a különálló `/siteadmin` dashboardra.
+- **Megelőzés**: Ha adminhatóköröket választunk szét, a régi shellből **MINDEN** korábbi entrypointot, tabot és menüpontot el kell távolítani. Nem elég csak az új route-ot létrehozni — az összes régi shellt, oldalsávot, config tabot és navigációs entrypointot is kötelező megvizsgálni.
+
+*Appendelve: 2026-04-03 — v1.4.5 governance integritás fix (átszámozva HIBA-036/037-ről, mivel azok már foglaltak voltak más tanulságokkal)*

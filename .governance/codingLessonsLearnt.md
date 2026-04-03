@@ -392,3 +392,24 @@
 
 *Utoljára frissítve: 2026-04-01 — összevont közös tudásbázis*
 *Ez egy FOLYAMATOSAN BŐVÜLŐ fájl. Új hibákat MINDIG appendelj, SOHA ne törölj!*
+
+
+## ➕ APPEND — 2026-04-03 siteadmin / venue-admin szétválasztás (pubapp-specifikus)
+
+### [HIBA-051] Site Admin rossz entrypointra mutatott a venue-admin shellből
+- **Dátum**: 2026-04-03 (v1.4.3)
+- **Fájl**: `src/app/admin/layout.tsx`
+- **Hibaüzenet**: A venue-admin oldalsávban továbbra is megjelent a Site Admin link, ami nem a Site Admin főoldalra, hanem a `siteadmin/venues` nézetre vitt.
+- **Gyökérok**: A siteadmin külön route már létrejött, de a régi `/admin` shellben bent maradt a keverő menüpont, és az rossz célútvonalra (`/siteadmin/venues`) mutatott.
+- **Javítás**: A közvetlen sidebar menüpont kikerült a venue-admin navigációból; helyette superadmin esetén csak elkülönítő átvezető CTA marad a külön `/siteadmin` felületre.
+- **Megelőzés**: Ha két adminhatókör szétválik, **SOHA** ne maradjon az egyik shell főnavigációjában a másik teljes felülete azonos prioritású menüpontként. Az entrypoint a megfelelő gyökér route-ra mutasson, nem belső aloldalra.
+
+### [HIBA-052] A külön siteadmin route létrehozása önmagában nem szünteti meg a funkcionális keveredést
+- **Dátum**: 2026-04-03 (v1.4.4)
+- **Fájl**: `src/app/admin/layout.tsx`, `src/app/admin/config/page.tsx`
+- **Hibaüzenet**: A siteadmin továbbra is a szolgáltatói admin felület részeként látszott; a Common Admin bent maradt a venue-admin konfigurátorban.
+- **Gyökérok**: Az új route és layout létrejött, de a régi entrypointok és tabok megmaradtak a venue-admin shellben.
+- **Javítás**: Venue-adminból kikerültek a Site Admin navigációs pont és a Common Admin tab; a siteadmin/venues visszalépést kapott a `/siteadmin` dashboardra.
+- **Megelőzés**: Admin hatóköri szétválasztásnál kötelező a régi shell összes entrypointját, tabját és navigációs elemét is eltávolítani — nem elég csak az új route-ot létrehozni.
+
+*Appendelve: 2026-04-03 — v1.4.5 governance integritás fix*
