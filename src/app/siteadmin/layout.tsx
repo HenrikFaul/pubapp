@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 
 const SITEADMIN_NAV = [
-  { href: '/siteadmin', label: 'Common Admin', icon: LayoutDashboard },
+  { href: '/siteadmin/CommonAdmin', label: 'Common Admin', icon: LayoutDashboard },
   { href: '/siteadmin/venues', label: 'Venue registry', icon: Building2 },
   { href: '/siteadmin/users', label: 'Felhasználók', icon: Users },
   { href: '/siteadmin/logs', label: 'Aktivitás logok', icon: ScrollText },
