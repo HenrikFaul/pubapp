@@ -172,10 +172,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           {isSuperAdmin && (
             <div className="mt-4 rounded-[20px] border border-violet-400/20 bg-violet-500/10 p-4 text-white">
-              <p className="text-xs uppercase tracking-[0.2em] text-violet-200/70">Platform admin</p>
-              <p className="mt-2 font-semibold">A Site Admin külön felületre került.</p>
-              <button onClick={() => router.push('/siteadmin')} className="btn-outline mt-3 w-full border-violet-400/20 text-violet-100 hover:bg-violet-500/15">
-                <Shield className="h-4 w-4" /> Site admin megnyitása
+              <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">Platform szint</p>
+              <p className="mt-2 text-sm font-semibold text-white">A Site Admin külön felületre került.</p>
+              <p className="mt-1 text-xs text-white/55">A platformszintű common_admin funkciók a venue-admintól elkülönülve érhetők el.</p>
+              <button onClick={() => router.push('/siteadmin')} className="btn-outline mt-3 w-full border-violet-400/30 text-violet-100 hover:bg-violet-500/10">
+                <Shield className="h-4 w-4" /> Site Admin megnyitása
               </button>
             </div>
           )}

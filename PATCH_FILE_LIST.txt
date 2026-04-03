@@ -1,7 +1,6 @@
-src/app/siteadmin/layout.tsx
-src/app/siteadmin/page.tsx
 src/app/admin/layout.tsx
-src/app/admin/config/page.tsx
-changelog.md
-versioning/14040335_v1.4.3_business_request_summary.pdf
-versioning/14040335_v1.4.3_ai_dev_prompts.md
+src/app/siteadmin/venues/page.tsx
+CHANGELOG_APPEND_v1.4.3.md
+CODING_LESSONS_APPEND_v1.4.3.md
+versioning/14040336_v1.4.3_business_request_summary.pdf
+versioning/14040336_v1.4.3_ai_dev_prompts.md

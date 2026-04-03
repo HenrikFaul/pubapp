@@ -1,9 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { formatPrice, timeAgo } from '@/lib/utils'
-import { Search, Store, MapPin, Star, ShoppingBag, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Search, Store, MapPin, Star, ShoppingBag, ToggleLeft, ToggleRight, ChevronRight, LayoutDashboard } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function VenuesPage() {
@@ -19,7 +20,6 @@ export default function VenuesPage() {
         .order('created_at', { ascending: false })
       setVenues(v || [])
 
-      // Fetch order stats per venue
       const { data: orders } = await supabase.from('orders')
         .select('venue_id, total')
         .not('status', 'eq', 'cancelled')
@@ -51,16 +51,34 @@ export default function VenuesPage() {
   )
 
   return (
-    <div>
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Helyszínek</h1>
-          <p className="text-slate-400 text-sm mt-1">{venues.length} regisztrált helyszín</p>
+    <div className="space-y-5">
+      <section className="admin-card p-5 sm:p-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <div className="section-kicker mb-3">
+              <Store className="h-4 w-4" />
+              siteadmin venue registry
+            </div>
+            <h2 className="text-3xl font-bold text-white lg:text-4xl">Teljes venue registry platformszinten</h2>
+            <p className="mt-3 max-w-3xl text-sm text-white/60">
+              Ez a nézet a Common Admin külön Site Admin felületének része. A common_admin capability-k a Site Admin főoldalon érhetők el,
+              itt pedig a teljes venue állomány kezelése, státusza és üzemi áttekintése látható.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Link href="/siteadmin" className="btn-kapakka justify-between px-5 py-4">
+              <span className="inline-flex items-center gap-2"><LayoutDashboard className="h-4 w-4" /> Common Admin</span>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+            <div className="mini-stat">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/35">Venue-k száma</p>
+              <p className="mt-2 text-2xl font-black text-white">{venues.length}</p>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Search */}
-      <div className="relative mb-6">
+      <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
         <input
           value={search}
@@ -70,7 +88,6 @@ export default function VenuesPage() {
         />
       </div>
 
-      {/* Venue cards */}
       {loading ? (
         <div className="text-center py-12 text-slate-500 animate-pulse">Betöltés...</div>
       ) : filtered.length === 0 ? (
@@ -88,7 +105,6 @@ export default function VenuesPage() {
                   venue.is_active ? 'border-slate-700/30' : 'border-red-500/20 opacity-60'
                 }`}
               >
-                {/* Header with gradient */}
                 <div className="h-2" style={{
                   background: venue.is_active
                     ? 'linear-gradient(90deg, #6366f1, #8b5cf6)'
@@ -96,7 +112,6 @@ export default function VenuesPage() {
                 }} />
 
                 <div className="p-5">
-                  {/* Name & toggle */}
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 min-w-0">
                       <h3 className="text-white font-semibold text-base truncate">{venue.name}</h3>
@@ -117,7 +132,6 @@ export default function VenuesPage() {
                     </button>
                   </div>
 
-                  {/* Stats */}
                   <div className="grid grid-cols-3 gap-3 mb-4">
                     <div className="bg-slate-900/50 rounded-lg p-2.5 text-center">
                       <ShoppingBag className="w-3.5 h-3.5 text-amber-400 mx-auto mb-1" />
@@ -136,7 +150,6 @@ export default function VenuesPage() {
                     </div>
                   </div>
 
-                  {/* Features */}
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {venue.has_table_service && <span className="bg-slate-700/30 text-slate-400 text-xs px-2 py-0.5 rounded-full">🪑 Asztal</span>}
                     {venue.has_bar_service && <span className="bg-slate-700/30 text-slate-400 text-xs px-2 py-0.5 rounded-full">🍺 Pult</span>}
@@ -144,7 +157,6 @@ export default function VenuesPage() {
                     {venue.accepts_card && <span className="bg-slate-700/30 text-slate-400 text-xs px-2 py-0.5 rounded-full">💳</span>}
                   </div>
 
-                  {/* Owner */}
                   <div className="flex items-center justify-between pt-3 border-t border-slate-700/30">
                     <span className="text-slate-500 text-xs">
                       Tulajdonos: {venue.owner?.full_name || venue.owner?.email || '?'}
