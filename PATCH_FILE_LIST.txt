@@ -1,21 +1,20 @@
-# PUBAPP v1.4.6 — SiteAdmin src patch
-# Ezeket a fájlokat kell a GitHub repóba push-olni.
+# PUBAPP v1.4.7 — SiteAdmin teljes szétválasztás patch
+# ============================================================
+# FONTOS: MINDEN fájlt fel kell tölteni / push-olni.
+# Az admin/layout.tsx KÖTELEZŐ — ez távolítja el a "Site admin" menüpontot.
 
-# MÓDOSÍTOTT:
-src/app/admin/layout.tsx
-src/app/admin/config/page.tsx
+# MÓDOSÍTOTT fájlok (felülírni a repóban):
+src/app/admin/layout.tsx          ← "Site admin" NAV-ból kivéve, superadmin → /siteadmin redirect
+src/app/admin/config/page.tsx     ← Common Admin tab eltávolítva
+src/app/siteadmin/layout.tsx      ← standalone shell, 4 nav: Common Admin, Venues, Users, Logs
+src/app/siteadmin/page.tsx        ← import frissítve: @/components/siteadmin/CommonAdminPanel
 
-# ÚJ (standalone siteadmin shell + oldalak):
-src/app/siteadmin/layout.tsx
-src/app/siteadmin/page.tsx
+# ÚJ fájlok (hozzáadni a repóhoz):
 src/app/siteadmin/venues/page.tsx
 src/app/siteadmin/users/page.tsx
 src/app/siteadmin/logs/page.tsx
-
-# ÚJ (common admin komponens):
-src/components/admin/CommonAdminPanel.tsx
+src/components/siteadmin/CommonAdminPanel.tsx   ← ÚJ HELYEN (nem components/admin/)
 src/lib/commonAdminMetadata.ts
 
-# GOVERNANCE (changelog + lessons frissítve):
-changelog.md
-codingLessonsLearnt.md
+# TÖRÖLNI a repóból:
+src/components/admin/CommonAdminPanel.tsx       ← át lett helyezve components/siteadmin/-be

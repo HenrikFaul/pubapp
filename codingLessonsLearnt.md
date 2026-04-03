@@ -279,3 +279,15 @@
 - **Megelőzés**: **MINDEN** delivery PATCH_FILE_LIST-je tartalmazza az ÖSSZES módosított/létrehozott fájlt — beleértve a src fájlokat is. Ha új route/komponens/lib kerül be, az is kötelezően szerepel a listában. Governance-only delivery esetén ezt explicit fel kell tüntetni a listában.
 
 *Appendelve: 2026-04-03 — v1.4.6*
+
+
+## ➕ APPEND — 2026-04-03 komponens helytelen könyvtárba helyezve
+
+### [HIBA-054] Siteadmin komponens az admin/ könyvtárba lett elhelyezve
+- **Dátum**: 2026-04-03 (v1.4.7)
+- **Fájl**: `src/components/admin/CommonAdminPanel.tsx`
+- **Gyökérok**: A `CommonAdminPanel` a `components/admin/` mappába került, holott kizárólag a siteadmin felületen használatos. Ez félrevezető architektúrát okoz: egy siteadmin-only komponens az admin könyvtárban.
+- **Javítás**: Áthelyezve `src/components/siteadmin/CommonAdminPanel.tsx`-be, import frissítve.
+- **Megelőzés**: Komponens létrehozásakor a könyvtár neve tükrözze, melyik hatókörbe tartozik a komponens. Ha a komponens kizárólag siteadmin oldalon jelenik meg, a helye `components/siteadmin/`, nem `components/admin/`.
+
+*Appendelve: 2026-04-03 — v1.4.7*

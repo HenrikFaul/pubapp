@@ -322,3 +322,42 @@ Minden változtatás dátummal és leírással. Append-only — korábbi bejegyz
 - [x] venue-admin konfigurátorból (config/page.tsx) kikerült a Common Admin tab
 - [x] siteadmin nav teljes: Common Admin, Venue registry, Felhasználók, Aktivitás logok
 - [x] Korábbi history érintetlen
+
+---
+
+## [1.4.7] — 2026-04-03
+
+### 🛡️ CommonAdminPanel áthelyezése + admin/layout.tsx javítás feltöltési hiba után
+
+#### Probléma
+- A v1.4.6 patch feltöltésekor az `src/app/admin/layout.tsx` nem került be a repóba, ezért a "Site admin" menüpont megmaradt a venue-admin oldalsávban.
+- A `CommonAdminPanel.tsx` komponens a `src/components/admin/` mappába volt elhelyezve, holott architektúrálisan a `src/components/siteadmin/` mappába tartozik.
+
+#### Javítások
+- **`src/components/admin/CommonAdminPanel.tsx` → `src/components/siteadmin/CommonAdminPanel.tsx`** — áthelyezve a helyes architektúrális könyvtárba.
+- **`src/app/siteadmin/page.tsx`** — import frissítve: `@/components/siteadmin/CommonAdminPanel`.
+- **`src/app/admin/layout.tsx`** — explicit újrajelölve patch-be: "Site admin" nincs a NAV-ban, superadmin automatikusan `/siteadmin`-re kerül.
+
+#### Végső architektúra
+```
+src/components/
+  ├── admin/           ← venue-admin komponensek (CommonAdminPanel NEM ide való)
+  └── siteadmin/
+        └── CommonAdminPanel.tsx  ← platform szintű admin komponens
+
+/customer  → Felhasználói felület (standalone)
+/admin     → Szolgáltatói felület (venue admin + staff, superadminnak redirect /siteadmin-re)
+/siteadmin → Site Admin felület (standalone, csak superadmin)
+              ├── Common Admin dashboard (CommonAdminPanel)
+              ├── Venue registry
+              ├── Felhasználók
+              └── Aktivitás logok
+```
+
+### ✅ Végellenőrzési checklist
+- [x] `src/components/admin/CommonAdminPanel.tsx` törölve a repóból
+- [x] `src/components/siteadmin/CommonAdminPanel.tsx` létrehozva
+- [x] `src/app/siteadmin/page.tsx` import frissítve
+- [x] `src/app/admin/layout.tsx` NAV-ban nincs "Site admin"
+- [x] superadmin → /siteadmin redirect működik
+- [x] venue admin és siteadmin teljesen különálló shell

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import CommonAdminPanel from '@/components/admin/CommonAdminPanel'
+import CommonAdminPanel from '@/components/siteadmin/CommonAdminPanel'
 import { Building2, ChevronRight, ScrollText, Shield } from 'lucide-react'
 
 export default function SiteAdminPage() {
