@@ -26,7 +26,7 @@ export default function SiteAdminPage() {
               <span className="inline-flex items-center gap-2"><Building2 className="h-4 w-4" /> Venue registry</span>
               <ChevronRight className="h-4 w-4" />
             </Link>
-            <Link href="/admin" className="btn-outline justify-between px-5 py-4">
+            <Link href="/venueadmin" className="btn-outline justify-between px-5 py-4">
               <span className="inline-flex items-center gap-2"><ScrollText className="h-4 w-4" /> Venue admin</span>
               <ChevronRight className="h-4 w-4" />
             </Link>

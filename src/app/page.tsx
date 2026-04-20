@@ -180,8 +180,8 @@ export default function HomePage() {
         const userRole = profile?.role || (user.user_metadata?.role as string) || 'customer'
 
         if (['admin', 'staff', 'superadmin'].includes(userRole)) {
-          if (userRole === 'admin' && !profile?.venue_id) router.replace('/admin/setup')
-          else router.replace('/admin')
+          if (userRole === 'admin' && !profile?.venue_id) router.replace('/venueadmin/setup')
+          else router.replace('/venueadmin')
         } else {
           router.replace('/customer')
         }
@@ -215,8 +215,8 @@ export default function HomePage() {
       const { data: profile } = await supabase.from('profiles').select('role, venue_id').eq('id', userId).single()
       const userRole = profile?.role || fallbackRole || 'customer'
       if (['admin', 'staff', 'superadmin'].includes(userRole)) {
-        if (userRole === 'admin' && !profile?.venue_id) router.replace('/admin/setup')
-        else router.replace('/admin')
+        if (userRole === 'admin' && !profile?.venue_id) router.replace('/venueadmin/setup')
+        else router.replace('/venueadmin')
       } else {
         router.replace('/customer')
       }
@@ -272,7 +272,7 @@ export default function HomePage() {
         hasRedirected.current = true
         setMsg('Regisztráció sikeres! Átirányítás...')
         setTimeout(() => {
-          if (role === 'admin') router.replace('/admin/setup')
+          if (role === 'admin') router.replace('/venueadmin/setup')
           else router.replace('/customer')
         }, 500)
       } else {

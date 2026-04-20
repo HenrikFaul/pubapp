@@ -72,7 +72,7 @@ export default function SetupVenuePage() {
     )
 
     toast.success('Helyszín létrehozva!')
-    router.push('/admin')
+    router.push('/venueadmin')
     setSaving(false)
   }
 
