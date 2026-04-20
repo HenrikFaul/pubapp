@@ -419,3 +419,20 @@ src/components/
 
 #### Végeredmény
 - A SiteAdmin sync trigger immár JWT-kompatibilis (HS256) szerveroldali kulccsal hívja az Edge Functiont.
+
+---
+## [1.4.11] — 2026-04-20
+
+### 🔐 Legacy JWT fallback és HS256 alg-ellenőrzés a sync proxyban
+
+#### Gyökérok
+- Egyes Supabase projektekben az új API key típusok (ECC/ES256) láthatók elsődlegesen, miközben az Edge Function invoke továbbra is legacy HS256 JWT-t vár.
+- Emiatt még beállított kulcs mellett is `UNAUTHORIZED_UNSUPPORTED_TOKEN_ALGORITHM` hiba maradhat.
+
+#### Javítás
+- A sync proxy most már képes `SUPABASE_LEGACY_JWT_SECRET` + `SUPABASE_PROJECT_REF` (vagy URL-ből inferált ref) alapján **futásidőben HS256 service_role JWT-t generálni**.
+- Beépített JWT header ellenőrzés: csak `HS256` algoritmusú tokennel indít invoke-ot.
+- Hibaszövegek pontosítva, hogy egyértelmű legyen: `sb_publishable` / `sb_secret` kulcsok nem Bearer JWT-k az Edge Function invoke-hoz.
+
+#### Végeredmény
+- A SiteAdmin sync trigger működése nem akad el akkor sem, ha közvetlen legacy service_role kulcs helyett legacy JWT secret áll rendelkezésre.

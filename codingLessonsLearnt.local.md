@@ -40,3 +40,10 @@
 - **Gyökérok**: A publishable kulcs nem HS256 JWT token (`eyJ...`), ezért Edge Function hitelesítésnél `UNAUTHORIZED_UNSUPPORTED_TOKEN_ALGORITHM (ES256)` hibát okozhat.
 - **Javítás**: A proxy elsődlegesen `SUPABASE_SERVICE_ROLE_KEY`-t használ, és kulcsformátum-validációt végez hívás előtt.
 - **Megelőzés**: Szerveroldali Edge Function invoke esetén mindig JWT-alapú kulcsot használj Bearerhez (service role vagy legacy anon JWT), `sb_publishable`/`sb_secret` kulcsot ne.
+
+### [LOCAL-HIBA-006] Új Supabase API key rendszer mellett is legacy HS256 JWT kellhet Edge invoke-hoz
+- **Dátum**: 2026-04-20
+- **Fájl**: `src/app/api/siteadmin/sync-hu-places/route.ts`
+- **Gyökérok**: Az API key oldalon látható ECC/ES256 kulcsok félrevezethetik a beállítást, miközben az adott invoke útvonal legacy HS256 JWT tokennel működik.
+- **Javítás**: A proxy képes `SUPABASE_LEGACY_JWT_SECRET`-ből futásidőben HS256 service_role JWT-t aláírni, és invoke előtt alg-ellenőrzést végez.
+- **Megelőzés**: Ha csak legacy JWT secret áll rendelkezésre, generálj belőle rövid lejáratú service_role JWT-t szerveroldalon; kliensoldalon ne használd ezeket a kulcsokat.
