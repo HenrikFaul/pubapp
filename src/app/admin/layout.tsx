@@ -24,16 +24,16 @@ import {
 } from 'lucide-react'
 
 const NAV = [
-  { href: '/admin',              label: 'Élő kiszolgálás', icon: Zap },
-  { href: '/admin/kds',          label: 'Konyha monitor',  icon: Monitor },
-  { href: '/admin/orders',       label: 'Rendelések',      icon: ClipboardList },
-  { href: '/admin/menu',         label: 'Étlap',           icon: UtensilsCrossed },
-  { href: '/admin/reservations', label: 'Foglalások',      icon: CalendarClock },
-  { href: '/admin/inventory',    label: 'Készlet',         icon: Package },
-  { href: '/admin/stats',        label: 'Statisztikák',    icon: BarChart3 },
-  { href: '/admin/reports',      label: 'Riportok',        icon: FileDown },
-  { href: '/admin/config',       label: 'Konfigurátor',    icon: Settings },
-  { href: '/admin/help',         label: 'Segítség',        icon: HelpCircle },
+  { href: '/venueadmin',              label: 'Élő kiszolgálás', icon: Zap },
+  { href: '/venueadmin/kds',          label: 'Konyha monitor',  icon: Monitor },
+  { href: '/venueadmin/orders',       label: 'Rendelések',      icon: ClipboardList },
+  { href: '/venueadmin/menu',         label: 'Étlap',           icon: UtensilsCrossed },
+  { href: '/venueadmin/reservations', label: 'Foglalások',      icon: CalendarClock },
+  { href: '/venueadmin/inventory',    label: 'Készlet',         icon: Package },
+  { href: '/venueadmin/stats',        label: 'Statisztikák',    icon: BarChart3 },
+  { href: '/venueadmin/reports',      label: 'Riportok',        icon: FileDown },
+  { href: '/venueadmin/config',       label: 'Konfigurátor',    icon: Settings },
+  { href: '/venueadmin/help',         label: 'Segítség',        icon: HelpCircle },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -102,8 +102,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           .channel('admin-live-orders')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchPending)
           .subscribe()
-      } else if (!pathname?.startsWith('/admin/setup')) {
-        router.push('/admin/setup')
+      } else if (!pathname?.startsWith('/venueadmin/setup')) {
+        router.push('/venueadmin/setup')
       }
     }
 
@@ -119,7 +119,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.push('/')
   }
 
-  if (pathname === '/admin/kds') return <>{children}</>
+  if (pathname === '/venueadmin/kds') return <>{children}</>
 
   if (authState === 'loading') {
     return (
@@ -202,7 +202,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             const Icon = item.icon
             const active =
               pathname === item.href ||
-              (item.href !== '/admin' && pathname?.startsWith(item.href))
+              (item.href !== '/venueadmin' && pathname?.startsWith(item.href))
             return (
               <Link
                 key={item.href}
@@ -212,7 +212,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               >
                 <Icon className="h-4 w-4" />
                 <span>{item.label}</span>
-                {item.href === '/admin' && pending > 0 && (
+                {item.href === '/venueadmin' && pending > 0 && (
                   <span className="ml-auto inline-flex min-w-[22px] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[11px] font-black text-white">
                     {pending}
                   </span>

@@ -188,7 +188,7 @@ export default function MenuTemplatesPage() {
     <div className="p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-2">
-        <button onClick={() => router.push('/admin/menu')} className="text-stone-400 hover:text-stone-600">
+        <button onClick={() => router.push('/venueadmin/menu')} className="text-stone-400 hover:text-stone-600">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>

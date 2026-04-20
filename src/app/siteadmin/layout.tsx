@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 
 const SITEADMIN_NAV = [
-  { href: '/siteadmin/CommonAdmin', label: 'Common Admin', icon: LayoutDashboard },
+  { href: '/siteadmin', label: 'Common Admin', icon: LayoutDashboard },
   { href: '/siteadmin/venues', label: 'Venue registry', icon: Building2 },
   { href: '/siteadmin/users', label: 'Felhasználók', icon: Users },
   { href: '/siteadmin/logs', label: 'Aktivitás logok', icon: ScrollText },
@@ -91,9 +91,9 @@ export default function SiteAdminLayout({ children }: { children: React.ReactNod
         <div className="hero-card w-full max-w-xl p-8 text-center">
           <div className="section-kicker mx-auto mb-4 w-fit"><Shield className="h-4 w-4" /> Site admin hozzáférés szükséges</div>
           <h1 className="section-title">Ez a felület csak superadmin szerepkörrel érhető el.</h1>
-          <p className="section-subtitle mt-3">A venue-admin és a site-admin innentől külön működik. Ha venue-admin vagy, használd a /admin felületet.</p>
+          <p className="section-subtitle mt-3">A venue-admin és a site-admin innentől külön működik. Ha venue-admin vagy, használd a /venueadmin felületet.</p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <button onClick={() => router.push('/admin')} className="btn-kapakka sm:w-auto sm:px-6">Venue admin</button>
+            <button onClick={() => router.push('/venueadmin')} className="btn-kapakka sm:w-auto sm:px-6">Venue admin</button>
             <button onClick={() => router.push('/customer')} className="btn-outline sm:w-auto sm:px-6">Vendég oldal</button>
           </div>
         </div>
@@ -143,7 +143,7 @@ export default function SiteAdminLayout({ children }: { children: React.ReactNod
           <p className="text-sm font-semibold">{user?.full_name || user?.email || 'Site admin'}</p>
           <p className="mt-1 text-xs uppercase tracking-[0.18em] text-white/35">{user?.role || 'superadmin'}</p>
           <div className="mt-4 flex flex-col gap-2">
-            <button onClick={() => router.push('/admin')} className="btn-outline">
+            <button onClick={() => router.push('/venueadmin')} className="btn-outline">
               <Store className="h-4 w-4" /> Venue admin
             </button>
             <button onClick={logout} className="btn-outline">

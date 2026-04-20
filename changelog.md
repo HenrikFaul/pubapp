@@ -361,3 +361,26 @@ src/components/
 - [x] `src/app/admin/layout.tsx` NAV-ban nincs "Site admin"
 - [x] superadmin → /siteadmin redirect működik
 - [x] venue admin és siteadmin teljesen különálló shell
+
+---
+## [1.4.8] — 2026-04-20
+
+### 🧭 SiteAdmin láthatósági javítás + route átnevezés
+
+#### Gyökérok
+- A SiteAdmin oldalsávban a Common Admin menüpont hibás route-ra mutatott (`/siteadmin/CommonAdmin`), miközben a tényleges dashboard route a `/siteadmin`.
+- A venue admin belső route-hivatkozások továbbra is `/admin` prefixet használtak, ezért a kért `venueadmin` név nem volt konzisztensen érvényesítve.
+
+#### Javítások
+- A SiteAdmin Common Admin menüpont route-ja javítva: **`/siteadmin`**.
+- Új, különálló venue admin route-fa létrehozva: **`/venueadmin`** (minden korábbi admin aloldal elérhető ezen is).
+- A teljes belső hivatkozási lánc frissítve `venueadmin` névre:
+  - login/signup role redirectek
+  - venue admin oldalsáv navigation
+  - setup/menu/customer/siteadmin átjárások
+- Kompatibilitási és regresszióvédelmi célból a régi `/admin` és `/admin/:path*` útvonalak **301 redirecttel** a `/venueadmin` útvonalra mutatnak (`next.config.js`).
+
+#### Végeredmény
+- **`/siteadmin`**: különálló, működő Site Admin shell és Common Admin dashboard.
+- **`/venueadmin`**: különálló venue admin shell (korábbi `/admin` funkciók).
+- **`/admin`**: legacy belépési pont, automatikus átirányítás `/venueadmin`-ra.
