@@ -652,7 +652,7 @@ export default function CustomerPage() {
             Az admin panelen design váltás, foglalási beállítások, rendelésjelzések és place-discovery funkciók is konfigurálhatók redeploy nélkül.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <button onClick={() => router.replace('/admin')} className="btn-kapakka sm:w-auto sm:px-6">
+            <button onClick={() => router.replace('/venueadmin')} className="btn-kapakka sm:w-auto sm:px-6">
               Admin panel megnyitása
             </button>
             <button onClick={logout} className="btn-outline sm:w-auto sm:px-6">

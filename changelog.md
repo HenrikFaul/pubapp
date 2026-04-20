@@ -361,3 +361,61 @@ src/components/
 - [x] `src/app/admin/layout.tsx` NAV-ban nincs "Site admin"
 - [x] superadmin → /siteadmin redirect működik
 - [x] venue admin és siteadmin teljesen különálló shell
+
+---
+## [1.4.8] — 2026-04-20
+
+### 🧭 SiteAdmin láthatósági javítás + route átnevezés
+
+#### Gyökérok
+- A SiteAdmin oldalsávban a Common Admin menüpont hibás route-ra mutatott (`/siteadmin/CommonAdmin`), miközben a tényleges dashboard route a `/siteadmin`.
+- A venue admin belső route-hivatkozások továbbra is `/admin` prefixet használtak, ezért a kért `venueadmin` név nem volt konzisztensen érvényesítve.
+
+#### Javítások
+- A SiteAdmin Common Admin menüpont route-ja javítva: **`/siteadmin`**.
+- Új, különálló venue admin route-fa létrehozva: **`/venueadmin`** (minden korábbi admin aloldal elérhető ezen is).
+- A teljes belső hivatkozási lánc frissítve `venueadmin` névre:
+  - login/signup role redirectek
+  - venue admin oldalsáv navigation
+  - setup/menu/customer/siteadmin átjárások
+- Kompatibilitási és regresszióvédelmi célból a régi `/admin` és `/admin/:path*` útvonalak **301 redirecttel** a `/venueadmin` útvonalra mutatnak (`next.config.js`).
+
+#### Végeredmény
+- **`/siteadmin`**: különálló, működő Site Admin shell és Common Admin dashboard.
+- **`/venueadmin`**: különálló venue admin shell (korábbi `/admin` funkciók).
+- **`/admin`**: legacy belépési pont, automatikus átirányítás `/venueadmin`-ra.
+
+---
+## [1.4.9] — 2026-04-20
+
+### 🛠️ SiteAdmin sync trigger CORS/Edge elérés stabilizálás
+
+#### Gyökérok
+- A SiteAdmin felület közvetlenül böngészőből hívta a `sync-hu-places` Edge Functiont (`supabase.functions.invoke(...)`), ami preflight (`OPTIONS`) hibával elbukhatott CORS/gateway útvonalon.
+- Emiatt a felhasználó `Failed to send a request to the Edge Function` hibát kapott még akkor is, ha a kliensoldali logika egyébként helyes volt.
+
+#### Javítás
+- Új szerveroldali proxy endpoint készült: **`/api/siteadmin/sync-hu-places`**.
+  - Ez a route szerveroldalon hívja a Supabase Edge Function végpontját (`/functions/v1/sync-hu-places`), így böngészőoldali CORS preflight hiba nem blokkolja a műveletet.
+  - A hibakezelés explicit: ha a function 404, külön jelzi, hogy a function deploy hiányzik.
+- A `CommonAdminPanel` mostantól ezt a proxy endpointot használja közvetlen `supabase.functions.invoke` helyett.
+
+#### Végeredmény
+- A SiteAdmin **Sync trigger** gomb nem közvetlen cross-origin fetch-t használ, hanem ugyanazon originen lévő API proxyt.
+- A hibaüzenet diagnosztikai értékűbb (deploy hiány, upstream státusz).
+
+---
+## [1.4.10] — 2026-04-20
+
+### 🔐 SiteAdmin sync JWT kulcsalgoritmus javítás (ES256 hiba)
+
+#### Gyökérok
+- A sync proxy Bearer tokenként olyan kulcsot kapott, ami nem HS256 JWT (`sb_publishable...`), ezért az Edge Function `UNAUTHORIZED_UNSUPPORTED_TOKEN_ALGORITHM (ES256)` hibát adott.
+
+#### Javítás
+- A proxy hitelesítés elsődlegesen `SUPABASE_SERVICE_ROLE_KEY`-t használ.
+- Beépített validáció: ha nem JWT formátumú kulcs (`eyJ...`) van beállítva, a proxy explicit hibát ad, és nem próbál hibás tokennel hívni.
+- Külön célzott hibaüzenet került be az `UNAUTHORIZED_UNSUPPORTED_TOKEN_ALGORITHM` esetre.
+
+#### Végeredmény
+- A SiteAdmin sync trigger immár JWT-kompatibilis (HS256) szerveroldali kulccsal hívja az Edge Functiont.

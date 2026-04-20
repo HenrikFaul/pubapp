@@ -85,7 +85,7 @@ export default function MenuPage() {
         </div>
         <div className="flex gap-2">
           <Link
-            href="/admin/menu/templates"
+            href="/venueadmin/menu/templates"
             className="flex items-center gap-2 px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-xl text-sm font-medium transition-colors"
           >
             <Sparkles className="w-4 h-4" /> Sablonok

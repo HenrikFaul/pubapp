@@ -39,8 +39,17 @@ export default function CommonAdminPanel() {
   async function triggerSync() {
     setLoading(true)
     try {
-      const { error } = await supabase.functions.invoke('sync-hu-places', { body: { reason: 'common-admin-manual' } })
-      if (error) throw error
+      const response = await fetch('/api/siteadmin/sync-hu-places', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'common-admin-manual' }),
+      })
+
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Nem sikerült elindítani a syncet.')
+      }
+
       toast.success('Hungary local catalog sync elindítva.')
       await refreshState()
     } catch (error: any) {
